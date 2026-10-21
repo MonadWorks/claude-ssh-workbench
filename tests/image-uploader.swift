@@ -14,10 +14,14 @@ struct ImageUploaderTests {
         let escaped = try Uploader.sftpQuote("/tmp/a \"b\"\\c")
         assert(escaped == "\"/tmp/a \\\"b\\\"\\\\c\"")
         rejects { _ = try Uploader.sftpQuote("/tmp/ok\nput bad") }
-        rejects { _ = try ImageFile(data: Data("not an image".utf8)) }
-        rejects { _ = try ImageFile(data: Data(count: 21 * 1024 * 1024)) }
-        let png = try ImageFile(data: Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5XcAAAAASUVORK5CYII=")!)
-        assert(png.ext == "png")
+        let pdf = try UploadFile(data: Data("%PDF-1.4\nexample".utf8), name: "文档.pdf")
+        assert(pdf.name == "文档.pdf")
+        assert(UploadFile.remoteName("../../文档.pdf", index: 0) == "01-文档.pdf")
+        assert(!UploadFile.remoteName("x$(bad)`\n.pdf", index: 1).contains("$"))
+        assert(UploadFile.remoteName(String(repeating: "论文", count: 100) + ".pdf", index: 0).utf8.count < 255)
+        rejects { _ = try UploadFile(data: Data(count: 21 * 1024 * 1024)) }
+        let png = try UploadFile(data: Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5XcAAAAASUVORK5CYII=")!)
+        assert(png.name == "clipboard.png")
         let uploader = try Uploader(host: "unused-test-host")
         rejects { _ = try uploader.upload([]) { _ in fatalError("Must reject before SSH") } }
         rejects { _ = try uploader.upload(Array(repeating: png, count: 21)) { _ in fatalError("Must reject before SSH") } }

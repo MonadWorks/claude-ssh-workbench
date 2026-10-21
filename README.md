@@ -52,18 +52,18 @@ Open **http://127.0.0.1:4188**. Keep the backend running while using the workben
 
 The first connection can take several seconds. First-use login, trust and bypass notices are Claude's native terminal screens. Use the terminal to complete any notices. No subscription or API credentials are bundled with this repository.
 
-## Images in the browser workbench
+## Files in the browser workbench
 
-SSH does not forward the Mac's image clipboard to the remote Windows clipboard, so the workbench sends images itself through the same SSH alias:
+SSH does not forward the Mac's image clipboard to the remote Windows clipboard, so the workbench sends files itself through the same SSH alias:
 
-- **Paste** a screenshot into the terminal (Command + V after **Control + Shift + Command + 4**). A clipboard that also holds text pastes the text as usual; only image-only clipboards are uploaded.
-- **Drop** image files anywhere on the page, or use **Uplink** in the terminal bar to choose files.
+- **Paste** a screenshot into the terminal (Command + V after **Control + Shift + Command + 4**). A clipboard that also holds text pastes the text as usual; only file/image clipboards without text are uploaded.
+- **Drop** files anywhere on the page, or use **Uplink** in the terminal bar to choose files.
 
-The backend uploads the batch over SFTP to a new folder under `%USERPROFILE%\ClaudeUploads`, verifies SHA-256 hashes, then types the quoted remote paths into the current terminal followed by a space. It never presses Enter: add your request and send it yourself. If the terminal is not connected yet, the paths are copied to the clipboard instead. Limits match the native helper below. The Uplink console keeps the last 24 transmissions (remote path and a small thumbnail, stored in this browser's local storage) so you can insert or copy them again; **Clear** removes them.
+The backend uploads the batch over SFTP to a new folder under `%USERPROFILE%\ClaudeUploads`, verifies SHA-256 hashes, then types the quoted remote paths into the original terminal followed by a space. It never presses Enter: add your request and send it yourself. If you switched sessions or the original terminal is not connected, the paths are copied to the clipboard instead. PDFs, images, text, Office documents, archives and other regular files are accepted: up to 20 files, 20 MB each, 100 MB total. File names keep a numbered, sanitized version of the original name and extension. File transfer does not convert documents or run their contents; Claude handles each format using its available tools. Folders must be compressed first. Limits match the native helper below. The Uplink console keeps the last 24 transmissions (remote path and a small thumbnail, stored in this browser's local storage) so you can insert or copy them again; **Clear** removes them.
 
-## Images from a Mac terminal
+## Files from a Mac terminal
 
-For an ordinary terminal without the browser, the optional native helper uploads images through the existing SSH connection configuration and copies their **remote file paths**. Paste those paths into Claude Code and add your request. It works with an ordinary terminal and does not need the browser or its backend running.
+For an ordinary terminal without the browser, the optional native helper uploads files through the existing SSH connection configuration and copies their **remote file paths**. Paste those paths into Claude Code and add your request. It works with an ordinary terminal and does not need the browser or its backend running.
 
 On macOS with Xcode Command Line Tools and Python 3 installed, build a desktop shortcut using your existing SSH alias:
 
@@ -71,9 +71,9 @@ On macOS with Xcode Command Line Tools and Python 3 installed, build a desktop s
 python3 scripts/build-image-uploader.py --host claude-host --output "$HOME/Desktop/Claude Image Uploader.app"
 ```
 
-Open the app, then choose **上传剪贴板图片** (upload clipboard image), **选择图片…** (choose images), or drag image files into its window. To capture directly to the clipboard on a Mac, press **Control + Shift + Command + 4**, then press **Command + V** in the uploader. After success, switch back to the Claude terminal and press **Command + V** again to paste the remote paths. The helper never submits your Claude prompt. **再次复制路径** copies the last successful result again.
+Open the app, then choose **上传剪贴板图片** (upload clipboard image), **选择文件…** (choose files), or drag files into its window. To capture directly to the clipboard on a Mac, press **Control + Shift + Command + 4**, then press **Command + V** in the uploader. After success, switch back to the Claude terminal and press **Command + V** again to paste the remote paths. The helper never submits your Claude prompt. **再次复制路径** copies the last successful result again.
 
-- PNG, JPEG, GIF and WebP files; up to 20 images, 20 MB each and 100 MB per batch. Clipboard bitmap images are converted to PNG.
+- Regular files including PDFs, images and documents; up to 20 files, 20 MB each and 100 MB per batch. Clipboard bitmap images are converted to PNG. The helper preserves a sanitized original filename and adds a batch-local sequence number.
 - Uploads go to a unique folder under `%USERPROFILE%\ClaudeUploads`, outside your project repository. SHA-256 hashes are checked before paths are copied. Copies remain there until you remove them; a failed upload can leave partial files in its new batch folder.
 - The app reads the clipboard only when you request it. Successful uploads replace the clipboard with text paths. No GitHub upload, account login, background watcher or additional network service is involved.
 - SSH keys and host verification use your existing OpenSSH configuration. The generated app contains the chosen host alias in `Contents/Resources/config.json`, but no private keys or account tokens. Keep personal app builds out of Git.
@@ -119,7 +119,7 @@ npm run check  # TypeScript/build + offline tests; no remote account required
 | `src/components/SessionSidebar.tsx` | Session selection |
 | `src/components/FilePanel.tsx` | Read-only file and Git views |
 | `src/useWorkbench.ts` | Metadata and last-session selection |
-| `src/useUplink.ts`, `src/uplink.ts` | Image paste/drop/pick, upload stream and transmission log |
+| `src/useUplink.ts`, `src/uplink.ts` | File paste/drop/pick, upload stream and transmission log |
 | `src/components/Uplink.tsx` | Uplink console, transmission card and drop target |
 | `src/components/Starfield.tsx` | Background starfield, blaster fire and hyperspace jumps |
 | `src/components/Holo.tsx` | Decrypting text and the connection opening crawl |
@@ -129,9 +129,9 @@ npm run check  # TypeScript/build + offline tests; no remote account required
 | `server/ssh.ts` | Encoded PowerShell commands and bypass-by-default CLI launch |
 | `server/remote.ps1` | Remote read-only file/history/Git queries |
 | `server/index.ts` | Local HTTP/WebSocket server and access checks |
-| `server/uploads.ts` | Image batch validation, SFTP upload and SHA-256 verification |
+| `server/uploads.ts` | File batch validation, SFTP upload and SHA-256 verification |
 
-Offline tests cover bypass defaults, literal path quoting, terminal screen restoration, initial session selection, IME cleanup timing, and image batch validation, SFTP quoting and path insertion. Live integration requires your own authorized remote machine and is not run in CI.
+Offline tests cover bypass defaults, literal path quoting, terminal screen restoration, initial session selection, IME cleanup timing, and mixed file batch validation, filename sanitization, SFTP quoting and path insertion. Live integration requires your own authorized remote machine and is not run in CI.
 
 For browser input regression checks, run `npx vite --host 127.0.0.1` and open `/tests/terminal-input.html` on the displayed development URL. Click **Run input regressions** to compare stock xterm against the fix for repeated Chinese text, then type with your actual OS input method in the fixed terminal. This page only displays received input locally; it makes no SSH connection. Synthetic composition events cover the stale-caret failure but do not replace testing with an OS IME. The fixture is excluded from the production build.
 

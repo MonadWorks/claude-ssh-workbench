@@ -5,7 +5,8 @@ import { cssVars } from "../motion";
 const STEPS = [["connect", "Channel"], ["transfer", "Transmit"], ["verify", "Verify"]] as const;
 const SHOWN = 6;
 const PASTE_KEY = /Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘V" : "Ctrl+V";
-const plural = (n: number) => `${n} image${n === 1 ? "" : "s"}`;
+const plural = (n: number) => `${n} file${n === 1 ? "" : "s"}`;
+const fileLabel = (name: string) => name.match(/\.([a-z0-9]{1,8})$/i)?.[1].toUpperCase() || "FILE";
 const basename = (p: string) => p.slice(p.lastIndexOf("\\") + 1);
 
 export const UplinkIcon = () => <svg className="uplink-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -23,7 +24,7 @@ export function DropZone({ host }: { host: string }) {
       <path className="drop-arrow" d="M100 124V76M80 96l20-20 20 20" />
     </svg>
     <p className="drop-title">Release to transmit</p>
-    <p className="drop-sub">Images go to <code>ClaudeUploads</code> on {host}; their paths are typed into the terminal.</p>
+    <p className="drop-sub">Files go to <code>ClaudeUploads</code> on {host}; their paths are typed into the terminal.</p>
   </div>;
 }
 
@@ -43,7 +44,7 @@ function statusLine(job: UplinkJob, host: string) {
   if (job.status === "error") return job.error;
   if (job.status === "done") return {
     inserted: "Paths are in the terminal. Add your request, then press Enter.",
-    copied: "The terminal isn't ready, so the paths were copied to the clipboard.",
+    copied: "Paths were copied to the clipboard because the original terminal is no longer selected or ready.",
     none: "The terminal isn't ready. Use Copy paths, then paste them into Claude.",
   }[job.delivered || "none"];
   return {
@@ -70,7 +71,7 @@ function Job({ job, host, onRetry, onInsert, onCopy }: {
     {job.count ? <><div className="thumbs">
       {Array.from({ length: Math.min(job.count, SHOWN) }, (_, i) =>
         <span className="thumb" key={i} style={cssVars({ "--i": i })}>
-          {job.thumbs[i] ? <img src={job.thumbs[i]} alt="" /> : null}
+          {job.thumbs[i] ? <img src={job.thumbs[i]} alt="" /> : <small title={job.names[i]}>{fileLabel(job.names[i] || "")}</small>}
         </span>)}
       {job.count > SHOWN ? <span className="thumb more">+{job.count - SHOWN}</span> : null}
     </div>
@@ -121,23 +122,23 @@ export function UplinkDock(p: DockProps) {
     setNote({ path, text });
     setTimeout(() => setNote((n) => (n?.path === path ? undefined : n)), 1600);
   };
-  return <section className="uplink-dock" aria-label="Image uplink"
+  return <section className="uplink-dock" aria-label="File uplink"
     onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
     onKeyDown={(e) => { if (e.key === "Escape") p.onClose(); }}>
     <header className="dock-head">
       <UplinkIcon />
-      <span className="dock-title">Image uplink</span>
+      <span className="dock-title">File uplink</span>
       <span className="dock-host">→ {p.host}</span>
       {p.open || p.job?.status !== "sending"
-        ? <button className="dock-close" aria-label="Close image uplink" onClick={p.onClose}>×</button> : null}
+        ? <button className="dock-close" aria-label="Close file uplink" onClick={p.onClose}>×</button> : null}
     </header>
     {p.job ? <Job key={p.job.id} job={p.job} host={p.host} onRetry={p.onRetry} onInsert={p.onInsert} onCopy={p.onCopy} /> : null}
     {p.open ? <>
       <button className="bay" onClick={p.onChoose}>
         <span className="bay-glyph"><UplinkIcon /></span>
-        <strong>Drop images or choose files</strong>
+        <strong>Drop files or choose files</strong>
         <span>Or paste a screenshot into the terminal with {PASTE_KEY}</span>
-        <small>PNG · JPEG · GIF · WebP · 20 images × 20 MB max</small>
+        <small>PDF · Images · Documents · 20 files × 20 MB max</small>
       </button>
       {p.log.length ? <div className="manifest">
         <div className="manifest-head">
@@ -147,7 +148,7 @@ export function UplinkDock(p: DockProps) {
         </div>
         <ul>
           {p.log.map((item, i) => <li key={item.path} style={cssVars({ "--i": Math.min(i, 12) })}>
-            <span className="thumb">{item.thumb ? <img src={item.thumb} alt="" /> : null}</span>
+            <span className="thumb">{item.thumb ? <img src={item.thumb} alt="" /> : <small>{fileLabel(item.name || item.path)}</small>}</span>
             <span className="m-text">
               <b title={item.name}>{item.name || basename(item.path)}</b>
               <small title={item.path}>{item.path}</small>

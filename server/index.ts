@@ -6,7 +6,7 @@ import { DEFAULT_CWD, HOST, PORT, ROOT } from "./config.ts";
 import { remote } from "./ssh.ts";
 import { changes, createSession, getSession, sessions, syncHistory } from "./sessions.ts";
 import { attachTerminal, dimensions, shutdown } from "./terminal.ts";
-import { MAX_BATCH_BYTES, splitBatch, uploadImages } from "./uploads.ts";
+import { MAX_BATCH_BYTES, MAX_MANIFEST_BYTES, splitBatch, splitFiles, uploadImages, uploadFiles } from "./uploads.ts";
 import type { HistoryItem } from "../shared/types.ts";
 
 const app = express(),
@@ -61,6 +61,14 @@ app.get("/api/changes", async (req, res) =>
   res.json(await remote({ op: "changes", path: req.query.path })),
 );
 app.post("/api/sessions", (req, res) => res.json(createSession(req.body)));
+app.post("/api/files", express.raw({ type: "application/octet-stream", limit: MAX_BATCH_BYTES + MAX_MANIFEST_BYTES + 4 }), async (req, res) => {
+  const files = splitFiles(Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0));
+  res.type("application/x-ndjson");
+  const send = (message: object) => res.write(JSON.stringify(message) + "\n");
+  try { send({ paths: await uploadFiles(files, (stage) => send({ stage })) }); }
+  catch (error) { send({ error: (error as Error).message }); }
+  res.end();
+});
 // Streams NDJSON: {stage} lines while the batch crosses SSH, then {paths} or {error}.
 app.post("/api/images", express.raw({ type: "application/octet-stream", limit: MAX_BATCH_BYTES }), async (req, res) => {
   const sizes = String(req.query.sizes || "").split(",").map(Number);

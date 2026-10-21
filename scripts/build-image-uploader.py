@@ -30,8 +30,8 @@ info = {"CFBundleExecutable": binary.name, "CFBundleIdentifier": "works.monad.cl
         "CFBundleName": output.stem, "CFBundleDisplayName": output.stem,
         "CFBundlePackageType": "APPL", "CFBundleVersion": "1", "CFBundleShortVersionString": "0.1.0",
         "LSMinimumSystemVersion": "12.0", "NSHighResolutionCapable": True,
-        "CFBundleDocumentTypes": [{"CFBundleTypeName": "Images", "CFBundleTypeRole": "Viewer",
-                                   "LSHandlerRank": "None", "LSItemContentTypes": ["public.png", "public.jpeg", "com.compuserve.gif", "org.webmproject.webp"]}]}
+        "CFBundleDocumentTypes": [{"CFBundleTypeName": "Files", "CFBundleTypeRole": "Viewer",
+                                   "LSHandlerRank": "None", "LSItemContentTypes": ["public.data"]}]}
 (output / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
 subprocess.run(["/usr/bin/codesign", "--force", "--sign", "-", str(output)], check=True)
 print(output)

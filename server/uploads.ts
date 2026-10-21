@@ -5,14 +5,31 @@ import os from "node:os";
 import path from "node:path";
 import { HOST } from "./config.ts";
 import { remote } from "./ssh.ts";
+import { MAX_FILES, MAX_FILE_BYTES, MAX_BATCH_BYTES, MAX_MANIFEST_BYTES, checkFiles, remoteFileName } from "../shared/uploads.ts";
 
 // Same limits as the native macOS uploader.
-export const MAX_IMAGES = 20;
-export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
-export const MAX_BATCH_BYTES = 100 * 1024 * 1024;
+export const MAX_IMAGES = MAX_FILES;
+export const MAX_IMAGE_BYTES = MAX_FILE_BYTES;
+export { MAX_BATCH_BYTES, MAX_MANIFEST_BYTES };
 
 export type Stage = "connect" | "transfer" | "verify";
 export interface ImageFile { data: Buffer; ext: "png" | "jpg" | "gif" | "webp"; }
+export interface UploadFile { data: Buffer; name: string; }
+
+export function splitFiles(body: Buffer): UploadFile[] {
+  if (body.length < 4) throw new Error("The upload arrived incomplete. Please retry.");
+  const length = body.readUInt32BE(0);
+  if (!length || length > MAX_MANIFEST_BYTES || length + 4 > body.length) throw new Error("Invalid file manifest.");
+  const manifest: unknown = JSON.parse(body.subarray(4, 4 + length).toString("utf8"));
+  if (!Array.isArray(manifest) || manifest.some((f) => !f || typeof f.name !== "string" || !f.name.trim() || typeof f.size !== "number"))
+    throw new Error("Invalid file manifest.");
+  const reason = checkFiles(manifest);
+  if (reason) throw new Error(reason);
+  if (manifest.reduce((sum, f) => sum + f.size, 0) !== body.length - 4 - length)
+    throw new Error("The upload arrived incomplete. Please retry.");
+  let offset = 4 + length;
+  return manifest.map((f, i) => ({ name: remoteFileName(f.name, i), data: body.subarray(offset, (offset += f.size)) }));
+}
 
 /** Identify an image by its magic bytes; file names and MIME types are not trusted. */
 export function imageType(data: Buffer): ImageFile["ext"] | undefined {
@@ -51,6 +68,7 @@ function sftp(script: string, timeout = 300000): Promise<void> {
   const child = spawn("sftp", ["-q", "-b", "-", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20",
     "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=2", HOST], { stdio: "pipe" });
   child.stdin.end(script);
+  child.stdin.on("error", () => { /* Process error/exit below reports failures, including early SSH exit. */ });
   child.stdout.resume();
   return new Promise((resolve, reject) => {
     let stderr = "";
@@ -70,15 +88,19 @@ function sftp(script: string, timeout = 300000): Promise<void> {
 
 /** Upload into a fresh %USERPROFILE%\ClaudeUploads\<batch> folder and verify every file by SHA-256. */
 export async function uploadImages(images: ImageFile[], progress: (stage: Stage) => void): Promise<string[]> {
+  return uploadFiles(images.map((image, i) => ({ data: image.data, name: `image-${String(i + 1).padStart(2, "0")}.${image.ext}` })), progress);
+}
+
+export async function uploadFiles(files: UploadFile[], progress: (stage: Stage) => void): Promise<string[]> {
   progress("connect");
   const root = await remote<string>({ op: "upload-dir", batch: randomUUID() });
   if (typeof root !== "string" || !/^[A-Za-z]:[\\/]/.test(root) || /[\r\n\0"]/.test(root))
     throw new Error("The remote host returned an invalid upload folder.");
-  const names = images.map((image, i) => `image-${String(i + 1).padStart(2, "0")}.${image.ext}`);
+  const names = files.map((file) => file.name);
   const paths = names.map((name) => root + "\\" + name);
-  const staging = await mkdtemp(path.join(os.tmpdir(), "claude-images-"));
+  const staging = await mkdtemp(path.join(os.tmpdir(), "claude-files-"));
   try {
-    await Promise.all(images.map((image, i) => writeFile(path.join(staging, names[i]), image.data, { mode: 0o600 })));
+    await Promise.all(files.map((file, i) => writeFile(path.join(staging, names[i]), file.data, { mode: 0o600 })));
     progress("transfer");
     await sftp(names.map((name, i) =>
       `put ${sftpQuote(path.join(staging, name))} ${sftpQuote(sftpPath(paths[i]))}`).join("\n") + "\n");
@@ -87,7 +109,7 @@ export async function uploadImages(images: ImageFile[], progress: (stage: Stage)
   }
   progress("verify");
   const hashes = await remote<string[]>({ op: "hashes", paths });
-  const expected = images.map((image) => createHash("sha256").update(image.data).digest("hex"));
+  const expected = files.map((file) => createHash("sha256").update(file.data).digest("hex"));
   if (JSON.stringify(hashes) !== JSON.stringify(expected))
     throw new Error("The remote copy failed verification. Please upload again.");
   return paths;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { checkBatch, imageFiles, pathsText, thumbnail, transmit, type Stage } from "./uplink";
+import { checkBatch, pathsText, thumbnail, transmit, type Stage } from "./uplink";
 import { emit } from "./motion";
 
 const LOG_KEY = "claude-ssh-workbench.uplinks";
@@ -10,6 +10,7 @@ export interface UplinkJob {
   id: number;
   count: number;
   thumbs: string[];
+  names: string[];
   stage: Stage;
   status: "sending" | "done" | "error";
   error?: string;
@@ -26,14 +27,16 @@ function savedLog(): UplinkItem[] {
 }
 const copy = (text: string) => navigator.clipboard.writeText(text).then(() => true, () => false);
 
-/** Image uplink: paste a screenshot into the terminal, drop files on the window, or pick them. */
-export function useUplink(insert: (text: string) => boolean) {
+/** File uplink: paste a screenshot into the terminal, drop files on the window, or pick them. */
+export function useUplink(sessionId: string | undefined, insert: (text: string) => boolean) {
   const [job, setJob] = useState<UplinkJob | null>(null);
   const [log, setLog] = useState(savedLog);
   const [dragging, setDragging] = useState(false);
   const busy = useRef(false);
   const last = useRef<File[]>([]);
   const insertRef = useRef(insert);
+  const sessionRef = useRef(sessionId);
+  sessionRef.current = sessionId;
   insertRef.current = insert;
   useEffect(() => {
     try { localStorage.setItem(LOG_KEY, JSON.stringify(log)); } catch { /* Optional storage. */ }
@@ -45,24 +48,24 @@ export function useUplink(insert: (text: string) => boolean) {
 
   const send = useCallback(async (files: File[]) => {
     if (busy.current) return;
-    const id = Date.now(), images = imageFiles(files);
+    const id = Date.now(), targetSession = sessionRef.current;
     const update = (patch: Partial<UplinkJob>) => setJob((j) => (j && j.id === id ? { ...j, ...patch } : j));
-    const problem = checkBatch(images);
-    setJob({ id, count: images.length, thumbs: [], stage: "connect", status: problem ? "error" : "sending", error: problem });
+    const problem = checkBatch(files);
+    last.current = files;
+    setJob({ id, count: files.length, names: files.map((f) => f.name), thumbs: [], stage: "connect", status: problem ? "error" : "sending", error: problem });
     if (problem) return;
     busy.current = true;
-    last.current = images;
-    const thumbs = Promise.all(images.map((file) => thumbnail(file)));
+    const thumbs = Promise.all(files.map((file) => thumbnail(file)));
     void thumbs.then((t) => update({ thumbs: t }));
     try {
-      const paths = await transmit(images, (stage) => {
+      const paths = await transmit(files, (stage) => {
         update({ stage });
         if (stage === "transfer") emit("hyperspace");
       });
       const t = await thumbs;
-      setLog((old) => [...paths.map((path, i) => ({ path, name: images[i].name, thumb: t[i], at: Date.now() })),
+      setLog((old) => [...paths.map((path, i) => ({ path, name: files[i].name, thumb: t[i], at: Date.now() })),
         ...old.filter((item) => !paths.includes(item.path))].slice(0, LOG_LIMIT));
-      const delivered = insertPaths(paths) ? "inserted" : await copyPaths(paths) ? "copied" : "none";
+      const delivered = targetSession && targetSession === sessionRef.current && insertPaths(paths) ? "inserted" : await copyPaths(paths) ? "copied" : "none";
       update({ status: "done", paths, delivered });
     } catch (error) {
       update({ status: "error", error: (error as Error).message });
@@ -85,16 +88,16 @@ export function useUplink(insert: (text: string) => boolean) {
       setDragging(false);
       void send(Array.from(e.dataTransfer!.files));
     };
-    // Capture phase so an image paste never reaches xterm. Text pastes pass through untouched.
+    // Capture phase so a file paste never reaches xterm. Text pastes pass through untouched.
     const paste = (e: ClipboardEvent) => {
       const data = e.clipboardData, target = e.target as HTMLElement | null;
       if (!data || data.getData("text/plain")) return;
       if (target?.closest?.("input, textarea, select, [contenteditable]") && !target.closest(".terminal-host")) return;
-      const images = imageFiles(data.files);
-      if (!images.length) return;
+      const files = Array.from(data.files);
+      if (!files.length) return;
       e.preventDefault();
       e.stopPropagation();
-      void send(images);
+      void send(files);
     };
     window.addEventListener("dragenter", enter);
     window.addEventListener("dragover", over);

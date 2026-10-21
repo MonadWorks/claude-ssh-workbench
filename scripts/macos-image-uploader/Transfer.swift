@@ -7,29 +7,39 @@ struct UploadError: LocalizedError {
     init(_ message: String) { self.message = message }
 }
 
-struct ImageFile {
+struct UploadFile {
     let data: Data
-    let ext: String
+    let name: String
 
-    init(data: Data) throws {
-        guard !data.isEmpty, data.count <= 20 * 1024 * 1024 else {
-            throw UploadError("每张图片需小于 20 MB。")
-        }
-        let prefix = Array(data.prefix(12))
-        if prefix.starts(with: [137, 80, 78, 71, 13, 10, 26, 10]) { ext = "png" }
-        else if prefix.starts(with: [255, 216, 255]) { ext = "jpg" }
-        else if prefix.starts(with: Array("GIF87a".utf8)) || prefix.starts(with: Array("GIF89a".utf8)) { ext = "gif" }
-        else if prefix.count >= 12 && prefix[0..<4].elementsEqual("RIFF".utf8) && prefix[8..<12].elementsEqual("WEBP".utf8) { ext = "webp" }
-        else { throw UploadError("请选择 PNG、JPEG、GIF 或 WebP 图片。") }
+    init(data: Data, name: String = "clipboard.png") throws {
+        guard data.count <= 20 * 1024 * 1024 else { throw UploadError("每个文件需小于 20 MB。") }
         self.data = data
+        self.name = name
     }
 
     init(url: URL) throws {
         let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
         guard values.isRegularFile == true, let size = values.fileSize, size <= 20 * 1024 * 1024 else {
-            throw UploadError("请选择小于 20 MB 的图片文件。")
+            throw UploadError("请选择小于 20 MB 的文件。文件夹请先压缩。")
         }
-        try self.init(data: Data(contentsOf: url))
+        try self.init(data: Data(contentsOf: url), name: url.lastPathComponent)
+    }
+
+    static func remoteName(_ name: String, index: Int) -> String {
+        let leaf = name.replacingOccurrences(of: "\\", with: "/").split(separator: "/").last.map(String.init) ?? "file"
+        let allowed = CharacterSet.letters.union(.decimalDigits).union(.nonBaseCharacters).union(CharacterSet(charactersIn: " ._()-"))
+        let clean = String(String.UnicodeScalarView(leaf.unicodeScalars.map { allowed.contains($0) ? $0 : UnicodeScalar(95)! }))
+            .trimmingCharacters(in: CharacterSet(charactersIn: " ."))
+        let ext = (clean as NSString).pathExtension
+        let suffix = !ext.isEmpty && ext.count <= 16 && ext.range(of: "^[A-Za-z0-9]+$", options: .regularExpression) != nil ? "." + ext : ""
+        let stem = suffix.isEmpty ? clean : String(clean.dropLast(suffix.count))
+        var short = ""
+        for character in stem.prefix(96) {
+            let next = short + String(character)
+            if next.utf8.count > 180 { break }
+            short = next
+        }
+        return String(format: "%02d-", index + 1) + (short.isEmpty ? "file" : short) + suffix
     }
 }
 
@@ -92,15 +102,15 @@ struct Uploader {
         return Data(String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{feff}"))).utf8)
     }
 
-    func upload(_ images: [ImageFile], progress: @escaping (String) -> Void) throws -> [String] {
-        guard !images.isEmpty, images.count <= 20 else { throw UploadError("每次请选择 1 到 20 张图片。") }
-        guard images.reduce(0, { $0 + $1.data.count }) <= 100 * 1024 * 1024 else { throw UploadError("每次上传的图片合计需小于 100 MB。") }
+    func upload(_ files: [UploadFile], progress: @escaping (String) -> Void) throws -> [String] {
+        guard !files.isEmpty, files.count <= 20 else { throw UploadError("每次请选择 1 到 20 个文件。") }
+        guard files.reduce(0, { $0 + $1.data.count }) <= 100 * 1024 * 1024 else { throw UploadError("每次上传的文件合计需小于 100 MB。") }
         let batch = UUID().uuidString.lowercased()
-        let staging = FileManager.default.temporaryDirectory.appendingPathComponent("claude-images-" + batch)
+        let staging = FileManager.default.temporaryDirectory.appendingPathComponent("claude-files-" + batch)
         try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: staging) }
-        let names = images.enumerated().map { String(format: "image-%02d", $0.offset + 1) + "." + $0.element.ext }
-        for (image, name) in zip(images, names) { try image.data.write(to: staging.appendingPathComponent(name)) }
+        let names = files.enumerated().map { UploadFile.remoteName($0.element.name, index: $0.offset) }
+        for (file, name) in zip(files, names) { try file.data.write(to: staging.appendingPathComponent(name)) }
 
         progress("正在连接 \(host)…")
         let rootJSON = try powershell("$d=Join-Path $env:USERPROFILE 'ClaudeUploads\\\(batch)'; New-Item -ItemType Directory -Path $d -Force | Out-Null; ConvertTo-Json -InputObject $d -Compress")
@@ -110,13 +120,13 @@ struct Uploader {
         let batchInput = try zip(names, paths).map { name, remote in
             "put " + (try Self.sftpQuote(staging.appendingPathComponent(name).path)) + " " + (try Self.sftpQuote(Self.sftpPath(remote)))
         }.joined(separator: "\n") + "\n"
-        progress("正在上传 \(images.count) 张图片…")
+        progress("正在上传 \(files.count) 个文件…")
         _ = try run("/usr/bin/sftp", ["-q", "-b", "-"] + options + [host], input: Data(batchInput.utf8), timeout: 300)
-        progress("正在核对图片完整性…")
+        progress("正在核对文件完整性…")
         let verify = "$files=@(" + paths.map(Self.psQuote).joined(separator: ",") + "); $hashes=@($files | ForEach-Object { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() }); ConvertTo-Json -InputObject $hashes -Compress"
         let hashes = try JSONDecoder().decode([String].self, from: powershell(verify))
-        let expected = images.map { SHA256.hash(data: $0.data).map { String(format: "%02x", $0) }.joined() }
-        guard hashes == expected else { throw UploadError("远端图片校验失败，请重新上传。") }
+        let expected = files.map { SHA256.hash(data: $0.data).map { String(format: "%02x", $0) }.joined() }
+        guard hashes == expected else { throw UploadError("远端文件校验失败，请重新上传。") }
         return paths
     }
 }

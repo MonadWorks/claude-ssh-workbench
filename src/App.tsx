@@ -36,7 +36,7 @@ export default function App() {
   const workspace = useRef<HTMLElement>(null);
   const energy = useRef<HTMLElement>(null);
   const picker = useRef<HTMLInputElement>(null);
-  const uplink = useUplink((text) => terminal.current?.paste(text) ?? false);
+  const uplink = useUplink(s?.id, (text) => terminal.current?.paste(text) ?? false);
   const [dock, setDock] = useState(false);
   const host = w.config?.host || "remote host";
   // Every session switch (or reconnect of the same one) is a jump to lightspeed.
@@ -125,12 +125,12 @@ export default function App() {
             {s ? <span className="vb-status">{STATUS_LABELS[s.status]}</span> : null}
             <span className="vb-path" title={s?.cwd}>{s?.cwd}</span>
             <button className="uplink-btn" aria-expanded={dock} data-busy={uplink.job?.status === "sending" || undefined}
-              title="Send images to the remote host (or paste / drop them)" onClick={() => setDock((open) => !open)}>
+              title="Send files to the remote host (or paste / drop them)" onClick={() => setDock((open) => !open)}>
               <UplinkIcon />Uplink
               {uplink.log.length ? <span className="badge">{uplink.log.length}</span> : null}
             </button>
-            <input ref={picker} type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden
-              onChange={(e) => { void uplink.send(Array.from(e.target.files || [])); e.target.value = ""; }} />
+            <input ref={picker} type="file" multiple hidden
+              onChange={(e) => { if (e.target.files?.length) void uplink.send(Array.from(e.target.files)); e.target.value = ""; }} />
             <svg className="reticle" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="9" />
               <path d="M12 1v5M12 18v5M1 12h5M18 12h5" />

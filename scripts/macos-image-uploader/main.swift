@@ -22,7 +22,7 @@ final class Delegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let result = NSTextView()
     let progress = NSProgressIndicator()
     let clipboardButton = NSButton(title: "上传剪贴板图片", target: nil, action: nil)
-    let chooseButton = NSButton(title: "选择图片…", target: nil, action: nil)
+    let chooseButton = NSButton(title: "选择文件…", target: nil, action: nil)
     let copyButton = NSButton(title: "再次复制路径", target: nil, action: nil)
     var pending: [URL] = []
 
@@ -55,7 +55,7 @@ final class Delegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.delegate = self
 
-        let title = NSTextField(labelWithString: "把图片发给远端 Claude")
+        let title = NSTextField(labelWithString: "把文件发给远端 Claude")
         title.font = .boldSystemFont(ofSize: 20)
         let hint = NSTextField(wrappingLabelWithString: "上传后自动复制远端路径。回到 Claude 终端，按 ⌘V 粘贴，再补充你的要求并发送。")
         hint.textColor = .secondaryLabelColor
@@ -65,8 +65,8 @@ final class Delegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         clipboardButton.action = #selector(uploadClipboard)
         chooseButton.action = #selector(choose)
         copyButton.action = #selector(copyAgain); copyButton.isEnabled = false
-        status.stringValue = "可把图片文件拖进此窗口，也可从剪贴板上传。"
-        let shortcut = NSTextField(wrappingLabelWithString: "截图到剪贴板：⌃⇧⌘4，然后在此窗口按 ⌘V。支持 PNG、JPEG、GIF、WebP。")
+        status.stringValue = "可把文件拖进此窗口，也可从剪贴板上传。"
+        let shortcut = NSTextField(wrappingLabelWithString: "截图到剪贴板：⌃⇧⌘4，然后在此窗口按 ⌘V。也支持 PDF、文档和其他文件。")
         shortcut.font = .systemFont(ofSize: 12); shortcut.textColor = .secondaryLabelColor
         progress.style = .spinning; progress.isDisplayedWhenStopped = false; progress.controlSize = .small
         let statusRow = NSStackView(views: [progress, status]); statusRow.spacing = 8; statusRow.alignment = .centerY
@@ -112,9 +112,9 @@ final class Delegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @objc func choose() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.png, .jpeg, .gif, .webP]
-        panel.allowsMultipleSelection = true; panel.canChooseDirectories = false
-        panel.prompt = "上传图片"
+        panel.allowsOtherFileTypes = true
+        panel.allowsMultipleSelection = true; panel.canChooseDirectories = false; panel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
+        panel.prompt = "上传文件"
         panel.beginSheetModal(for: window) { [weak self] response in if response == .OK { self?.uploadFiles(panel.urls) } }
     }
 
@@ -123,12 +123,12 @@ final class Delegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let board = NSPasteboard.general
         if let urls = board.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty { uploadFiles(urls); return }
         do {
-            if let data = board.data(forType: .png) { try start([ImageFile(data: data)]); return }
+            if let data = board.data(forType: .png) { try start([UploadFile(data: data)]); return }
             if let image = NSImage(pasteboard: board), let tiff = image.tiffRepresentation,
                let bitmap = NSBitmapImageRep(data: tiff), let png = bitmap.representation(using: .png, properties: [:]) {
-                try start([ImageFile(data: png)]); return
+                try start([UploadFile(data: png)]); return
             }
-            throw UploadError("剪贴板中没有图片。请先截图或复制图片，也可以点击「选择图片…」。")
+            throw UploadError("剪贴板中没有图片。请先截图或复制图片，也可以点击「选择文件…」。")
         } catch { showError(error) }
     }
 
@@ -140,12 +140,12 @@ final class Delegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func uploadFiles(_ urls: [URL]) {
         guard !busy else { NSSound.beep(); return }
         do {
-            guard urls.count <= 20 else { throw UploadError("每次最多上传 20 张图片。") }
-            var images: [ImageFile] = [], bytes = 0
+            guard urls.count <= 20 else { throw UploadError("每次最多上传 20 个文件。") }
+            var images: [UploadFile] = [], bytes = 0
             for url in urls {
-                let image = try ImageFile(url: url)
+                let image = try UploadFile(url: url)
                 bytes += image.data.count
-                guard bytes <= 100 * 1024 * 1024 else { throw UploadError("每次上传的图片合计需小于 100 MB。") }
+                guard bytes <= 100 * 1024 * 1024 else { throw UploadError("每次上传的文件合计需小于 100 MB。") }
                 images.append(image)
             }
             try start(images)
@@ -163,7 +163,7 @@ final class Delegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(copied, forType: .string)
         status.stringValue = "路径已复制。回到 Claude 终端按 ⌘V 粘贴。"
     }
-    func start(_ images: [ImageFile]) throws {
+    func start(_ images: [UploadFile]) throws {
         guard let uploader = uploader else { throw UploadError("SSH 配置无效。") }
         guard !busy else { return }
         copied = ""; result.string = ""; setBusy(true)
@@ -175,7 +175,7 @@ final class Delegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     self.copied = Uploader.clipboardText(paths)
                     self.result.string = paths.joined(separator: "\n")
                     self.setBusy(false); self.copyAgain()
-                    self.status.stringValue = "\(images.count) 张图片上传成功，路径已复制。回到 Claude 按 ⌘V。"
+                    self.status.stringValue = "\(images.count) 个文件上传成功，路径已复制。回到 Claude 按 ⌘V。"
                 }
             } catch { DispatchQueue.main.async { self?.setBusy(false); self?.showError(error) } }
         }
