@@ -30,19 +30,19 @@ export function changed(persist = false) {
 }
 export function getSession(id: string): Session {
   const s = sessions.get(id);
-  if (!s) throw new Error("找不到会话");
+  if (!s) throw new Error("Session not found");
   return s;
 }
 export function createSession(input: { resumeId?: string; cwd?: string; title?: string }): Session {
   const id = input.resumeId || randomUUID();
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
-    throw new Error("无效会话 ID");
+    throw new Error("Invalid session ID");
   if (sessions.has(id)) return getSession(id);
-  if (sessions.size >= 200) throw new Error("工作台最多保留 200 个会话入口");
+  if (sessions.size >= 200) throw new Error("The workbench keeps at most 200 session entries");
   const cwd = input.cwd || DEFAULT_CWD;
   if (typeof cwd !== "string" || !/^[A-Za-z]:[\\/]/.test(cwd) || /[\0\r\n]/.test(cwd))
-    throw new Error("请输入完整的 Windows 本地路径");
-  const s: Session = { id, cwd, title: String(input.title || "新会话").slice(0, 100),
+    throw new Error("Enter a full local Windows path");
+  const s: Session = { id, cwd, title: String(input.title || "New session").slice(0, 100),
     persisted: Boolean(input.resumeId), status: "stopped", updatedAt: new Date().toISOString() };
   sessions.set(id, s);
   changed(true);

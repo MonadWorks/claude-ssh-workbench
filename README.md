@@ -61,7 +61,7 @@ The first connection can take several seconds. First-use login, trust and bypass
 - Status in the sidebar describes the terminal connection, not whether Claude is currently thinking. Read the native terminal for task status and prompts.
 - File and Git panels show the entire remote workspace. They do not provide per-session rollback.
 - Terminal scrollback is limited to 2,000 lines. Claude's complete transcripts remain remote. The history list includes the 100 most recently modified transcript files.
-- The interface is a space-opera "bridge": a starfield that jumps to lightspeed when you switch sessions, an opening crawl while a terminal connects, and status shown as glowing blades. The **曲速动效** button in the header turns ambient motion off; that choice is remembered per browser, and the default follows the system's reduced-motion setting.
+- The interface is a space-opera "bridge": a starfield that jumps to lightspeed when you switch sessions, an opening crawl while a terminal connects, and status shown as glowing blades. The **Warp FX** button in the header turns ambient motion off; that choice is remembered per browser, and the default follows the system's reduced-motion setting.
 
 ## Privacy and access
 
@@ -98,7 +98,7 @@ Offline tests cover bypass defaults, literal path quoting, terminal screen resto
 
 For browser input regression checks, run `npx vite --host 127.0.0.1` and open `/tests/terminal-input.html` on the displayed development URL. Click **Run input regressions** to compare stock xterm against the fix for repeated Chinese text, then type with your actual OS input method in the fixed terminal. This page only displays received input locally; it makes no SSH connection. Synthetic composition events cover the stale-caret failure but do not replace testing with an OS IME. The fixture is excluded from the production build.
 
-Built with [xterm.js](https://xtermjs.org/), [node-pty](https://github.com/microsoft/node-pty) and the official [Claude Code CLI](https://code.claude.com/docs/en/cli-reference). This is an independent project, not an official Anthropic product.
+Built with [xterm.js](https://xtermjs.org/), [node-pty](https://github.com/microsoft/node-pty) and the official [Claude Code CLI](https://code.claude.com/docs/en/cli-reference). Interface fonts are Orbitron, Rajdhani, Exo 2, News Cycle and JetBrains Mono (SIL Open Font License), bundled through [Fontsource](https://fontsource.org/) so the page makes no external font requests. This is an independent project, not an official Anthropic product.
 
 ## License
 

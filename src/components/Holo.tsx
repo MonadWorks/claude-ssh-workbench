@@ -27,16 +27,16 @@ export function Crawl({ status, exiting, children }: { status: ReactNode; exitin
   return <div className={`crawl${exiting ? " exiting" : ""}`}>
     <div className="crawl-body">
       <div className="crawl-sky" aria-hidden="true">
-        <p className="crawl-intro">很久以前，在一台遥远的远端主机上……</p>
+        <p className="crawl-intro">A long time ago, on a remote host far, far away….</p>
         <p className="crawl-logo"><span>CLAUDE</span><span>WORKBENCH</span></p>
         <div className="crawl-stage">
           <div className="crawl-text">
-            <p className="crawl-episode">EPISODE IV</p>
-            <h3>远 端 觉 醒</h3>
-            <p>星际网络动荡不安。一条加密的 SSH 隧道正穿越无数跃点，驶向遥远的远端主机。</p>
-            <p>Claude Code 已在那里整装待发。工作台正在恢复终端会话、校准键盘与输入法，并同步舰队的全部航行记录……</p>
-            <p>所有指令都将在原生终端中执行。只要本机工作台仍在运转，跃迁中的会话就不会迷失。</p>
-            <p className="crawl-sign">愿代码与你同在。</p>
+            <p className="crawl-episode">Episode IV</p>
+            <h3>THE REMOTE AWAKENS</h3>
+            <p>It is a period of network unrest. An encrypted SSH tunnel streaks across countless hops toward a distant remote host.</p>
+            <p>There, Claude Code stands ready. The workbench is restoring your terminal session, calibrating keyboard and input methods, and syncing the fleet’s flight logs….</p>
+            <p>Every command runs in the native terminal. As long as the local workbench keeps running, no session is lost in hyperspace.</p>
+            <p className="crawl-sign">May the code be with you.</p>
           </div>
         </div>
       </div>

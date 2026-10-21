@@ -83,26 +83,26 @@ export function FilePanel({
     }
   }
   return (
-    <aside className="panel files-panel" aria-label="文件与修改">
+    <aside className="panel files-panel" aria-label="Files and changes">
       <span className="rail" aria-hidden="true">DATA BANKS</span>
       <span className="panel-index" aria-hidden="true">03</span>
       <div className="panel-scroll">
         <p className="kicker" aria-hidden="true">03 // DATA BANKS</p>
         <div className="actions tabs">
           <button aria-pressed={tab === "files"} onClick={() => setTab("files")}>
-            文件
+            Files
           </button>
           <button
             aria-pressed={tab === "changes"}
             onClick={() => setTab("changes")}
           >
-            修改
+            Changes
           </button>
           <button className="refresh" disabled={loading} onClick={() => setRevision((x) => x + 1)}>
-            <i aria-hidden="true">↻</i>刷新
+            <i aria-hidden="true">↻</i><span>Refresh</span>
           </button>
         </div>
-        {loading ? <p role="status" className="scanning">读取中…</p> : null}
+        {loading ? <p role="status" className="scanning">Loading…</p> : null}
         {error ? (
           <p role="alert" className="error">
             {error}
@@ -119,7 +119,7 @@ export function FilePanel({
                   setFile(undefined);
                 }}
               >
-                上一级
+                Up
               </button>
               <button
                 onClick={() => {
@@ -127,12 +127,12 @@ export function FilePanel({
                   setFile(undefined);
                 }}
               >
-                项目根目录
+                Project root
               </button>
             </div>
             <input
-              aria-label="筛选文件"
-              placeholder="筛选当前目录"
+              aria-label="Filter files"
+              placeholder="Filter this directory"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
             />
@@ -166,14 +166,14 @@ export function FilePanel({
                 ))}
             </div>
             {directory?.truncated ? (
-              <small>当前目录仅列出前 1000 项。</small>
+              <small>Only the first 1,000 entries are listed.</small>
             ) : null}
             {file ? (
               <section className="file-preview">
                 <div className="preview-head">
                   <p className="path">{file.path}</p>
                   <button className="ignite" onClick={() => onAttach(file.path)}>
-                    <span>插入终端</span>
+                    <span>Insert path</span>
                   </button>
                 </div>
                 <pre>{file.content}</pre>
@@ -184,15 +184,15 @@ export function FilePanel({
           <section className="changes-preview">
             {changes?.available ? (
               <>
-                <p>工作区状态（包含其他会话的修改）</p>
+                <p>Working tree status (includes changes from other sessions)</p>
                 <pre className="git">
-                  {changes.status ? <Tinted text={changes.status} kind={statusKind} /> : "没有修改"}
+                  {changes.status ? <Tinted text={changes.status} kind={statusKind} /> : "No changes"}
                 </pre>
-                <p>已跟踪文件的差异；新文件请在文件列表预览。</p>
+                <p>Diff of tracked files. Preview new files from the file list.</p>
                 <pre className="git">
-                  {changes.diff ? <Tinted text={changes.diff} kind={diffKind} /> : "没有可显示的差异"}
+                  {changes.diff ? <Tinted text={changes.diff} kind={diffKind} /> : "No diff to show"}
                 </pre>
-                {changes.truncated ? <p>差异过长，显示已截断。</p> : null}
+                {changes.truncated ? <p>The diff is too long and was truncated.</p> : null}
               </>
             ) : (
               <p>{changes?.reason}</p>

@@ -3,10 +3,10 @@ import type { HistoryItem, Session } from "../../shared/types";
 import { cssVars } from "../motion";
 
 export const STATUS_LABELS: Record<Session["status"], string> = {
-  stopped: "连接已关闭",
-  connecting: "正在连接远端 Claude…",
-  idle: "终端已连接",
-  error: "需要重试",
+  stopped: "Disconnected",
+  connecting: "Connecting to remote Claude…",
+  idle: "Terminal online",
+  error: "Needs retry",
 };
 interface Props {
   sessions: Session[];
@@ -32,15 +32,15 @@ export function SessionSidebar(p: Props) {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const archive = p.history.filter((s) => !managed.has(s.id) && matches(s));
   return (
-    <aside className="panel sessions-panel" aria-label="项目与会话">
+    <aside className="panel sessions-panel" aria-label="Projects and sessions">
       <span className="rail" aria-hidden="true">FLEET COMMAND</span>
       <span className="panel-index" aria-hidden="true">01</span>
       <div className="panel-scroll">
         <p className="kicker" aria-hidden="true">01 // FLEET COMMAND</p>
         <label>
-          项目目录
+          Project directory
           <input
-            aria-label="项目目录"
+            aria-label="Project directory"
             list="projects"
             value={p.cwd}
             onChange={(e) => p.onCwd(e.target.value)}
@@ -52,19 +52,19 @@ export function SessionSidebar(p: Props) {
           ))}
         </datalist>
         <button className="ignite" onClick={p.onCreate} disabled={!p.cwd}>
-          <span>新建会话</span>
+          <span>New session</span>
         </button>
         <label className="search">
-          筛选会话
+          Filter sessions
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="标题或目录"
+            placeholder="Title or path"
           />
         </label>
         <h2>
           <span className="kicker" aria-hidden="true">ACTIVE FLEET</span>
-          工作台会话<span className="count">{fleet.length}</span>
+          Sessions<span className="count">{fleet.length}</span>
         </h2>
         {fleet.map((s, i) => (
           <button
@@ -80,13 +80,13 @@ export function SessionSidebar(p: Props) {
             <span>{s.title}</span>
             <small>
               {STATUS_LABELS[s.status]} ·{" "}
-              {new Date(s.updatedAt).toLocaleTimeString()}
+              {new Date(s.updatedAt).toLocaleTimeString("en-GB")}
             </small>
           </button>
         ))}
         <h2>
           <span className="kicker" aria-hidden="true">ARCHIVES</span>
-          远端历史<span className="count">{archive.length}</span>
+          Remote history<span className="count">{archive.length}</span>
         </h2>
         {archive.map((s, i) => (
           <button
@@ -98,12 +98,12 @@ export function SessionSidebar(p: Props) {
           >
             <i className="blade" aria-hidden="true" />
             <span>{s.title}</span>
-            <small>{new Date(s.updatedAt).toLocaleString()}</small>
+            <small>{new Date(s.updatedAt).toLocaleString("en-GB")}</small>
           </button>
         ))}
         {!p.history.some(matches) && !p.sessions.some(matches) ? (
           <p className="muted void-note">
-            这个目录还没有会话。可新建，或选择其他项目目录。
+            No sessions in this directory yet. Start one, or choose another project directory.
           </p>
         ) : null}
       </div>

@@ -64,7 +64,7 @@ export default function App() {
     </div>
     <header className="app-header">
       <div className="brand">
-        <span className="kicker" aria-hidden="true">⟊ HYPERSPACE UPLINK · 远端舰桥</span>
+        <span className="kicker" aria-hidden="true">⟊ Hyperspace uplink · Remote bridge</span>
         <strong className="title">
           <span className="sr-only">Claude SSH Workbench</span>
           {Array.from(TITLE, (c, i) => <span key={i} aria-hidden="true" style={cssVars({ "--i": i })}>{c === " " ? " " : c}</span>)}
@@ -72,11 +72,11 @@ export default function App() {
       </div>
       <dl className="telemetry">
         <div className="pod">
-          <dt>TARGET · 主机</dt>
+          <dt>Target host</dt>
           <dd><Decode text={w.config?.host || "—"} /></dd>
         </div>
         <div className="pod" data-full={live >= MAX_TERMINALS || undefined}>
-          <dt>REACTOR · 终端</dt>
+          <dt>Terminals</dt>
           <dd>
             <span className="cells" aria-hidden="true">
               {Array.from({ length: MAX_TERMINALS }, (_, i) =>
@@ -86,24 +86,24 @@ export default function App() {
           </dd>
         </div>
         <div className="pod">
-          <dt>STARDATE · 星历</dt>
+          <dt>Stardate</dt>
           <dd><Stardate /></dd>
         </div>
       </dl>
-      <span className="beacon" role="status">{w.connected ? "本机链路在线" : "本机服务连接中…"}</span>
+      <span className="beacon" role="status">{w.connected ? "Link online" : "Connecting to local service…"}</span>
       <div className="header-actions">
         <button className="warp-toggle" aria-pressed={motion} onClick={() => setMotion((m) => !m)}
-          title="星空、跃迁与环境动效">
-          曲速动效
+          title="Starfield, hyperspace jumps and ambient animation">
+          Warp FX
         </button>
-        <button onClick={() => void w.refresh()} disabled={w.refreshing}>{w.refreshing ? "刷新中…" : "刷新会话列表"}</button>
+        <button onClick={() => void w.refresh()} disabled={w.refreshing}>{w.refreshing ? "Refreshing…" : "Refresh sessions"}</button>
       </div>
       <i className="saber" aria-hidden="true" />
     </header>
     {w.error ? <div className="error-banner" role="alert">
       <span className="alert-tag" aria-hidden="true">ALERT</span>
       <span className="alert-text">{w.error}</span>
-      <button onClick={() => w.setError("")}>关闭提示</button>
+      <button onClick={() => w.setError("")}>Dismiss</button>
     </div> : null}
     <main className="workspace" ref={workspace}>
       <SessionSidebar sessions={w.sessions} history={w.history} selected={w.selected} cwd={project}
@@ -127,15 +127,15 @@ export default function App() {
           <div className="session-area">
             {s ? <TerminalPanel key={`${s.id}:${w.revision}`} ref={terminal} sessionId={s.id} />
               : <div className="empty-state">
-                <Crawl status={w.loading ? "正在恢复终端…" : "工作台尚未连接。"}>
-                  {!w.loading ? <button className="ignite" onClick={() => void w.restore()}><span>重试连接</span></button> : null}
+                <Crawl status={w.loading ? "Restoring terminal…" : "The workbench is not connected."}>
+                  {!w.loading ? <button className="ignite" onClick={() => void w.restore()}><span>Retry</span></button> : null}
                 </Crawl>
               </div>}
           </div>
         </div>
       </div>
       {project ? <FilePanel key={s?.id || project} cwd={s?.cwd || project} onAttach={(path) => {
-        if (!terminal.current?.paste(path)) w.setError("请等待终端连接后再插入路径。");
+        if (!terminal.current?.paste(path)) w.setError("Wait for the terminal to connect before inserting a path.");
       }} /> : null}
     </main>
   </div>;

@@ -5,7 +5,7 @@ import { HOST, ROOT } from "./config.ts";
 import type { Session } from "../shared/types.ts";
 
 export function psQuote(value: string): string {
-  if (value.includes("\0")) throw new Error("参数包含无效字符");
+  if (value.includes("\0")) throw new Error("Argument contains an invalid character");
   return "'" + value.replaceAll("'", "''") + "'";
 }
 export function sshProcess(script: string): ChildProcessWithoutNullStreams {
@@ -47,13 +47,13 @@ export async function remote<T>(
       stderr = "";
     const timer = setTimeout(() => {
       child.kill();
-      reject(new Error("远端响应超时，请检查 Tailscale 和 SSH 连接。"));
+      reject(new Error("The remote host timed out. Check the network (e.g. Tailscale) and the SSH connection."));
     }, timeout);
     child.stdout.setEncoding("utf8").on("data", (data) => {
       stdout += data;
       if (stdout.length > 24 * 1024 * 1024) {
         child.kill();
-        reject(new Error("返回内容过大"));
+        reject(new Error("Response too large"));
       }
     });
     child.stderr.setEncoding("utf8").on("data", (data) => {
@@ -66,12 +66,12 @@ export async function remote<T>(
     child.on("close", (code) => {
       clearTimeout(timer);
       if (code !== 0)
-        return reject(new Error(stderr.trim() || `SSH 退出 (${code})`));
+        return reject(new Error(stderr.trim() || `SSH exited (${code})`));
       try {
         resolve(JSON.parse(stdout.trim().replace(/^\uFEFF/, "")));
       } catch {
         reject(
-          new Error("远端返回格式异常：" + (stderr || stdout).slice(-500)),
+          new Error("Unexpected response from the remote host: " + (stderr || stdout).slice(-500)),
         );
       }
     });

@@ -20,7 +20,7 @@ const runtimes = new Map<string, Runtime>();
 export function dimensions(cols: unknown, rows: unknown) {
   const c = Number(cols), r = Number(rows);
   if (!Number.isInteger(c) || !Number.isInteger(r) || c < 20 || c > 400 || r < 5 || r > 200)
-    throw new Error("无效终端尺寸");
+    throw new Error("Invalid terminal size");
   return { cols: c, rows: r };
 }
 function send(ws: WebSocket, data: unknown) {
@@ -31,7 +31,7 @@ function send(ws: WebSocket, data: unknown) {
 function start(s: Session, cols: number, rows: number): Runtime {
   const existing = runtimes.get(s.id);
   if (existing) return existing;
-  if (runtimes.size >= 8) throw new Error("最多同时打开 8 个终端，请先在一个终端中使用 /exit 退出");
+  if (runtimes.size >= 8) throw new Error("At most 8 terminals can be open at once. Use /exit in one of them first.");
   s.status = "connecting";
   s.error = undefined;
   changed();
@@ -65,7 +65,7 @@ function start(s: Session, cols: number, rows: number): Runtime {
     runtime.ended = true;
     runtimes.delete(s.id);
     s.status = exitCode === 0 ? "stopped" : "error";
-    s.error = exitCode === 0 ? undefined : `远端终端已退出（${exitCode}），请查看终端中的提示后重试。`;
+    s.error = exitCode === 0 ? undefined : `The remote terminal exited (${exitCode}). Check the terminal output, then retry.`;
     changed(true);
     screen.write("", () => {
       for (const ws of runtime.clients) {
@@ -105,7 +105,7 @@ export function attachTerminal(ws: WebSocket, id: string, cols: number, rows: nu
           runtime.screen.resize(size.cols, size.rows);
           runtime.process.resize(size.cols, size.rows);
         });
-      } else throw new Error("无效终端消息");
+      } else throw new Error("Invalid terminal message");
     } catch { ws.close(1008, "Invalid terminal message"); }
   });
   // A serialized VT screen preserves cursor, colors, alternate buffer and input

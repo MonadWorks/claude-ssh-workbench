@@ -17,12 +17,17 @@
   --amber: #ffb02e;
   --error: #ff6b7c;
   --saber: var(--jedi);
-  --display: "Bahnschrift", "DIN Alternate", "DIN Condensed", "Avenir Next Condensed", "Arial Narrow", system-ui, sans-serif;
+  /* Orbitron: logo and numerals. Rajdhani: HUD labels. Exo 2: reading text.
+     News Cycle (a News Gothic revival): the opening crawl. CJK falls back to system fonts. */
+  --display: "Orbitron", "Bahnschrift", "DIN Alternate", sans-serif;
+  --hud: "Rajdhani", "Bahnschrift", "Arial Narrow", sans-serif;
+  --body: "Exo 2", system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --crawl: "News Cycle", "Franklin Gothic Medium", "Arial Narrow", sans-serif;
   --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --chamfer: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
   color-scheme: dark;
-  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--body);
   font-size: 14px;
   color: var(--text);
   background: var(--void);
@@ -67,10 +72,11 @@ button {
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  padding: 7px 14px;
+  padding: 6px 14px;
   color: var(--text);
-  font: 600 12px/1.25 var(--display);
-  letter-spacing: 0.12em;
+  font: 700 13px/1.25 var(--hud);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   background: linear-gradient(180deg, rgba(63, 208, 255, 0.12), rgba(63, 208, 255, 0.02));
   border: 1px solid rgba(63, 208, 255, 0.32);
   border-radius: 0;
@@ -174,8 +180,9 @@ label {
   flex-direction: column;
   gap: 6px;
   color: var(--muted);
-  font: 600 11px/1.2 var(--display);
-  letter-spacing: 0.16em;
+  font: 600 12px/1.2 var(--hud);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 small,
 .muted {
@@ -205,8 +212,9 @@ pre {
 .kicker {
   margin: 0;
   color: var(--jedi);
-  font: 600 10px/1.3 var(--mono);
-  letter-spacing: 0.28em;
+  font: 600 11px/1.3 var(--hud);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
   opacity: 0.85;
 }
 .decode {
@@ -297,7 +305,7 @@ pre {
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 18px;
   flex-wrap: wrap;
   min-height: 78px;
   padding: 12px 22px 16px 26px;
@@ -315,8 +323,8 @@ pre {
 .title {
   display: block;
   color: var(--gold);
-  font: 700 23px/1 var(--display);
-  letter-spacing: 0.3em;
+  font: 900 20px/1 var(--display);
+  letter-spacing: 0.1em;
   white-space: nowrap;
 }
 .title > span[aria-hidden] {
@@ -337,7 +345,7 @@ pre {
 }
 .pod {
   position: relative;
-  padding: 2px 18px;
+  padding: 2px 16px;
 }
 .pod::before {
   content: "";
@@ -351,16 +359,17 @@ pre {
 }
 .pod dt {
   color: var(--muted);
-  font: 600 9px/1.4 var(--mono);
-  letter-spacing: 0.24em;
+  font: 600 11px/1.4 var(--hud);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 .pod dd {
   display: flex;
   align-items: center;
   margin: 3px 0 0;
   color: var(--text);
-  font: 600 14px/1.2 var(--display);
-  letter-spacing: 0.08em;
+  font: 700 13px/1.2 var(--display);
+  letter-spacing: 0.06em;
   white-space: nowrap;
 }
 .pod .decode {
@@ -390,21 +399,21 @@ pre {
   box-shadow: 0 0 8px var(--sith);
 }
 .stardate {
-  font-family: var(--mono);
-  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 .stardate b {
-  margin-left: 8px;
+  margin-left: 10px;
   color: var(--gold);
-  font-weight: 500;
+  font-weight: 700;
 }
 .beacon {
   display: inline-flex;
   align-items: center;
   gap: 9px;
   color: var(--amber);
-  font: 600 11px/1 var(--display);
+  font: 700 13px/1 var(--hud);
   letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 .beacon::before {
   content: "";
@@ -614,8 +623,8 @@ pre {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   color: color-mix(in srgb, var(--accent) 60%, transparent);
-  font: 700 11px/1 var(--display);
-  letter-spacing: 0.55em;
+  font: 700 10px/1 var(--display);
+  letter-spacing: 0.45em;
   border-left: 1px solid var(--line);
   background: repeating-linear-gradient(0deg, transparent 0 6px, color-mix(in srgb, var(--accent) 7%, transparent) 6px 7px);
 }
@@ -656,21 +665,22 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 10px;
+  gap: 4px 8px;
   margin: 24px 0 10px;
   color: var(--gold);
-  font: 700 13px/1.2 var(--display);
-  letter-spacing: 0.2em;
+  font: 700 14px/1.2 var(--hud);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 h2 .kicker {
   flex-basis: 100%;
-  font-size: 9px;
+  font-size: 10px;
 }
 h2::after {
   content: "";
   flex: 1;
   height: 1px;
-  min-width: 20px;
+  min-width: 0;
   background: linear-gradient(90deg, var(--gold-soft), transparent);
 }
 .count {
@@ -696,8 +706,9 @@ h2::after {
   padding: 10px 12px 10px 22px;
   text-align: left;
   color: var(--text);
-  font: 13px/1.45 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font: 500 14px/1.4 var(--body);
   letter-spacing: normal;
+  text-transform: none;
   overflow-wrap: anywhere;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
   border: 1px solid var(--line);
@@ -841,8 +852,9 @@ h2::after {
   min-height: 40px;
   padding: 8px 16px 8px 40px;
   color: var(--muted);
-  font: 600 11px/1.3 var(--display);
+  font: 700 13px/1.3 var(--hud);
   letter-spacing: 0.14em;
+  text-transform: uppercase;
   border-bottom: 1px solid var(--line);
   background:
     linear-gradient(90deg, rgba(63, 208, 255, 0.1), transparent 65%),
@@ -870,8 +882,9 @@ h2::after {
   min-width: 0;
   overflow: hidden;
   color: var(--text);
-  font-size: 13px;
-  letter-spacing: 0.06em;
+  font: 500 14px/1.3 var(--body);
+  letter-spacing: 0.02em;
+  text-transform: none;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -888,6 +901,7 @@ h2::after {
   overflow: hidden;
   font: 11px var(--mono);
   letter-spacing: 0;
+  text-transform: none;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -937,11 +951,13 @@ h2::after {
   display: flex;
   align-items: center;
   gap: 14px;
+  width: max-content;
   max-width: calc(100% - 32px);
   padding: 10px 16px;
   translate: -50% 0;
   color: #c4f0ff;
-  font: 12px/1.5 var(--mono);
+  font: 600 14px/1.4 var(--hud);
+  letter-spacing: 0.06em;
   background:
     repeating-linear-gradient(0deg, rgba(63, 208, 255, 0.07) 0 1px, transparent 1px 3px),
     linear-gradient(rgba(8, 38, 58, 0.9), rgba(4, 18, 32, 0.92));
@@ -1005,8 +1021,8 @@ h2::after {
   margin: 0;
   padding: 0 8%;
   color: #4bd5ee;
-  font: 400 clamp(14px, 3.4cqw, 26px)/1.5 var(--display);
-  letter-spacing: 0.06em;
+  font: 400 clamp(15px, 3.6cqw, 28px)/1.5 var(--crawl);
+  letter-spacing: 0.02em;
   text-align: center;
   animation: crawl-intro 4.6s ease 0.4s both;
 }
@@ -1019,14 +1035,14 @@ h2::after {
   align-items: center;
   margin: 0;
   color: transparent;
-  font: 900 clamp(34px, 13cqw, 150px)/0.92 var(--display);
+  font: 900 clamp(30px, 11cqw, 130px)/0.95 var(--display);
   letter-spacing: 0.02em;
   -webkit-text-stroke: clamp(1px, 0.35cqw, 3px) var(--gold);
   animation: crawl-logo 8s cubic-bezier(0.25, 0.6, 0.35, 1) 4.8s both;
 }
 .crawl-logo span:last-child {
-  font-size: 0.42em;
-  letter-spacing: 0.32em;
+  font-size: 0.4em;
+  letter-spacing: 0.24em;
 }
 .crawl-stage {
   position: absolute;
@@ -1043,8 +1059,9 @@ h2::after {
   width: min(80cqw, 620px);
   margin-left: calc(min(80cqw, 620px) / -2);
   color: var(--gold);
-  font: 600 clamp(14px, 3.6cqw, 28px)/1.5 var(--display);
+  font: 700 clamp(15px, 3.8cqw, 30px)/1.45 var(--crawl);
   text-align: justify;
+  hyphens: auto;
   transform-origin: 50% 0;
   animation: crawl 46s linear 6s infinite both;
 }
@@ -1054,11 +1071,13 @@ h2::after {
 .crawl-episode,
 .crawl-text h3 {
   text-align: center;
+  text-transform: uppercase;
 }
 .crawl-text h3 {
   margin: 0 0 1em;
-  font-size: 1.7em;
-  letter-spacing: 0.08em;
+  font-size: 1.6em;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
 }
 .crawl-sign {
   text-align: center;
@@ -1067,13 +1086,15 @@ h2::after {
   position: absolute;
   left: 50%;
   top: 6%;
+  width: max-content;
   max-width: calc(100% - 32px);
   padding: 9px 20px 11px;
   translate: -50% 0;
   overflow: hidden;
   color: #c4f0ff;
-  font: 12px/1.5 var(--mono);
-  letter-spacing: 0.12em;
+  font: 700 13px/1.5 var(--hud);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   text-align: center;
   text-shadow: 0 0 8px rgba(63, 208, 255, 0.8);
   background: rgba(2, 12, 24, 0.78);
@@ -1107,6 +1128,10 @@ h2::after {
 }
 .tabs {
   margin-top: 0;
+}
+.tabs button {
+  padding-inline: 8px;
+  letter-spacing: 0.1em;
 }
 .tabs button[aria-pressed] {
   flex: 1;
@@ -1146,8 +1171,9 @@ h2::after {
   position: relative;
   margin: 12px 0 4px;
   color: var(--jedi);
-  font: 11px/1.4 var(--mono);
-  letter-spacing: 0.24em;
+  font: 700 12px/1.4 var(--hud);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
 }
 .scanning::after {
   content: "";
@@ -1188,6 +1214,7 @@ h2::after {
   color: #bfcbe2;
   font: 12px/1.45 var(--mono);
   letter-spacing: 0;
+  text-transform: none;
   overflow-wrap: anywhere;
   background: transparent;
   border: 0;
@@ -1594,18 +1621,33 @@ h2::after {
     display: none;
   }
 }
+@media (max-width: 1279px) {
+  .app-header {
+    gap: 12px;
+  }
+  .title {
+    font-size: 17px;
+    letter-spacing: 0.06em;
+  }
+}
 @media (max-width: 1100px) {
   .workspace {
     grid-template-columns: 230px minmax(300px, 1fr) 280px;
     gap: 10px;
     padding: 10px 12px 14px;
   }
-  .app-header {
-    gap: 12px;
+  .panel-scroll {
+    padding-inline: 12px;
   }
-  .title {
-    font-size: 19px;
-    letter-spacing: 0.22em;
+  .refresh span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .refresh i {
+    margin-right: 0;
   }
   .sessions-panel {
     margin-bottom: 20px;
@@ -1627,8 +1669,8 @@ h2::after {
     padding-right: 0;
   }
   .title {
-    font-size: 17px;
-    letter-spacing: 0.16em;
+    font-size: 15px;
+    letter-spacing: 0.06em;
   }
   .telemetry {
     margin-left: 0;
@@ -1659,10 +1701,12 @@ h2::after {
     display: none;
   }
   .sessions-panel {
+    --cut-a: 18px;
     max-height: 35vh;
     margin-bottom: 0;
   }
   .files-panel {
+    --cut-b: 18px;
     margin-top: 0;
   }
   .viewport {

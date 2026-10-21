@@ -22,12 +22,12 @@ app.use((req, res, next) => {
     !hosts.has(req.headers.host || "") ||
     (req.headers.origin && !origins.has(req.headers.origin))
   )
-    return res.status(403).json({ error: "仅允许本机工作台访问" });
+    return res.status(403).json({ error: "Only the local workbench may access this server" });
   if (
     !["GET", "HEAD"].includes(req.method) &&
     req.headers["x-workbench-request"] !== "1"
   )
-    return res.status(403).json({ error: "缺少请求标记" });
+    return res.status(403).json({ error: "Missing request marker" });
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   next();
@@ -61,7 +61,7 @@ app.get("/api/changes", async (req, res) =>
 );
 app.post("/api/sessions", (req, res) => res.json(createSession(req.body)));
 app.get("/api/sessions/:id", (req, res) => res.json(getSession(req.params.id)));
-app.use("/api", (_req, res) => res.status(404).json({ error: "接口不存在" }));
+app.use("/api", (_req, res) => res.status(404).json({ error: "Unknown endpoint" }));
 app.use(express.static(path.join(ROOT, "dist")));
 app.get("/", (_req, res) => res.sendFile(path.join(ROOT, "dist/index.html")));
 app.use(

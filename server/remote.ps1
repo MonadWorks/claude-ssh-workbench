@@ -3,7 +3,7 @@ $ProgressPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding
 $OutputEncoding = [Console]::OutputEncoding
 function FullPath($value) {
-  if ($value -notmatch '^[A-Za-z]:[\\/]') { throw '请选择完整的 Windows 本地目录，例如 C:\Projects' }
+  if ($value -notmatch '^[A-Za-z]:[\\/]') { throw 'Choose a full local Windows directory, for example C:\Projects' }
   return [IO.Path]::GetFullPath($value)
 }
 function SessionFiles {
@@ -46,7 +46,7 @@ switch ($request.op) {
   'directory' {
     $p = FullPath $request.path
     $d = Get-Item -LiteralPath $p
-    if (!$d.PSIsContainer) { throw '这不是目录' }
+    if (!$d.PSIsContainer) { throw 'Not a directory' }
     $all = @(Get-ChildItem -LiteralPath $p -Force | Sort-Object @{Expression={$_.PSIsContainer};Descending=$true},Name | Select-Object -First 1001)
     $items = @($all | Select-Object -First 1000 | ForEach-Object { @{name=$_.Name; path=$_.FullName; directory=[bool]$_.PSIsContainer; size=$_.Length} })
     $result = @{path=$d.FullName; parent=$d.Parent.FullName; entries=$items; truncated=($all.Count -gt 1000)}
@@ -54,17 +54,17 @@ switch ($request.op) {
   'read' {
     $p = FullPath $request.path
     $f = Get-Item -LiteralPath $p
-    if ($f.PSIsContainer -or $f.Length -gt 2097152) { throw '预览仅支持 2 MB 以内的文件' }
+    if ($f.PSIsContainer -or $f.Length -gt 2097152) { throw 'Preview supports files up to 2 MB' }
     $bytes = [IO.File]::ReadAllBytes($p)
-    if ($bytes -contains 0) { throw '暂不预览二进制文件' }
+    if ($bytes -contains 0) { throw 'Binary files cannot be previewed' }
     $result = @{path=$p; content=[Text.Encoding]::UTF8.GetString($bytes); hash=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash}
   }
   'changes' {
     $p = FullPath $request.path
-    if (!(Get-Command git -ErrorAction SilentlyContinue)) { $result=@{available=$false; reason='远端没有安装 Git；文件预览和 Claude 编辑仍可使用。'}; break }
+    if (!(Get-Command git -ErrorAction SilentlyContinue)) { $result=@{available=$false; reason='Git is not installed on the remote host. File preview and Claude edits still work.'}; break }
     $ErrorActionPreference = 'Continue'
     $inside = & git -C $p rev-parse --is-inside-work-tree 2>$null
-    if ($LASTEXITCODE -ne 0 -or $inside -ne 'true') { $result=@{available=$false; reason='当前目录不是 Git 仓库。'}; break }
+    if ($LASTEXITCODE -ne 0 -or $inside -ne 'true') { $result=@{available=$false; reason='This directory is not a Git repository.'}; break }
     $status = (& git -C $p -c core.quotepath=false status --short | Out-String)
     $diff = (& git -C $p -c core.quotepath=false diff --no-ext-diff --no-textconv --no-color HEAD -- 2>$null | Out-String)
     if ($LASTEXITCODE -ne 0) { $diff = (& git -C $p -c core.quotepath=false diff --no-ext-diff --no-textconv --no-color | Out-String) }
@@ -72,6 +72,6 @@ switch ($request.op) {
     if ($cut) {$diff=$diff.Substring(0,200000)}
     $result = @{available=$true; status=$status; diff=$diff; truncated=$cut}
   }
-  default { throw '不支持的操作' }
+  default { throw 'Unsupported operation' }
 }
 ConvertTo-Json -InputObject $result -Depth 30 -Compress

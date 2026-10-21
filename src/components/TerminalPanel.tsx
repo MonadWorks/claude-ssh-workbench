@@ -22,7 +22,7 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
     const terminal = useRef<Terminal | null>(null);
     const writable = useRef(false);
     const [attempt, setAttempt] = useState(0);
-    const [notice, setNotice] = useState("正在连接远端终端…");
+    const [notice, setNotice] = useState("Connecting to the remote terminal…");
     const [ended, setEnded] = useState(false);
     // The crawl covers the terminal until its first output, then plays a short exit.
     const [boot, setBoot] = useState<"on" | "exit" | "off">("on");
@@ -40,7 +40,7 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
     useEffect(() => {
       let disposed = false, exited = false, socket: WebSocket;
       let retry: ReturnType<typeof setTimeout>, frame = 0;
-      setNotice("正在连接远端终端…");
+      setNotice("Connecting to the remote terminal…");
       setEnded(false);
       setBoot("on");
       const live = () => {
@@ -115,13 +115,13 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
             writable.current = false;
             setEnded(true);
             setBoot("off");
-            setNotice(message.error || "终端已退出，会话记录已保留。");
+            setNotice(message.error || "Terminal exited. Session history is kept.");
           }
         };
         socket.onclose = () => {
           writable.current = false;
           if (!disposed && !exited) {
-            setNotice("连接已中断，正在重新连接…");
+            setNotice("Connection lost. Reconnecting…");
             retry = setTimeout(connect, 2000);
           }
         };
@@ -141,12 +141,12 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
         term.dispose();
       };
     }, [sessionId, attempt]);
-    return <section className="terminal-panel" aria-label="Claude Code 终端">
+    return <section className="terminal-panel" aria-label="Claude Code terminal">
       <div className="terminal-host" ref={host} />
-      {boot !== "off" ? <Crawl status={notice || "跃迁完成"} exiting={boot === "exit"} />
+      {boot !== "off" ? <Crawl status={notice || "Jump complete"} exiting={boot === "exit"} />
         : notice ? <div className="terminal-notice" role="status">
           <span>{notice}</span>
-          {ended ? <button onClick={() => setAttempt((n) => n + 1)}>重新连接</button> : null}
+          {ended ? <button onClick={() => setAttempt((n) => n + 1)}>Reconnect</button> : null}
         </div> : null}
     </section>;
   },

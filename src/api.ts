@@ -9,7 +9,7 @@ export async function api<T>(url: string, init: RequestInit = {}): Promise<T> {
   });
   const data = await response.json();
   if (!response.ok)
-    throw new Error(data.error || `请求失败 (${response.status})`);
+    throw new Error(data.error || `Request failed (${response.status})`);
   return data;
 }
 export const post = <T>(url: string, body: unknown = {}) =>
