@@ -52,9 +52,18 @@ Open **http://127.0.0.1:4188**. Keep the backend running while using the workben
 
 The first connection can take several seconds. First-use login, trust and bypass notices are Claude's native terminal screens. Use the terminal to complete any notices. No subscription or API credentials are bundled with this repository.
 
+## Images in the browser workbench
+
+SSH does not forward the Mac's image clipboard to the remote Windows clipboard, so the workbench sends images itself through the same SSH alias:
+
+- **Paste** a screenshot into the terminal (Command + V after **Control + Shift + Command + 4**). A clipboard that also holds text pastes the text as usual; only image-only clipboards are uploaded.
+- **Drop** image files anywhere on the page, or use **Uplink** in the terminal bar to choose files.
+
+The backend uploads the batch over SFTP to a new folder under `%USERPROFILE%\ClaudeUploads`, verifies SHA-256 hashes, then types the quoted remote paths into the current terminal followed by a space. It never presses Enter: add your request and send it yourself. If the terminal is not connected yet, the paths are copied to the clipboard instead. Limits match the native helper below. The Uplink console keeps the last 24 transmissions (remote path and a small thumbnail, stored in this browser's local storage) so you can insert or copy them again; **Clear** removes them.
+
 ## Images from a Mac terminal
 
-SSH does not forward the Mac's image clipboard to the remote Windows clipboard. The optional native helper uploads images through the existing SSH connection configuration and copies their **remote file paths**. Paste those paths into Claude Code and add your request. It works with an ordinary terminal and does not need the browser or its backend running.
+For an ordinary terminal without the browser, the optional native helper uploads images through the existing SSH connection configuration and copies their **remote file paths**. Paste those paths into Claude Code and add your request. It works with an ordinary terminal and does not need the browser or its backend running.
 
 On macOS with Xcode Command Line Tools and Python 3 installed, build a desktop shortcut using your existing SSH alias:
 
@@ -68,7 +77,7 @@ Open the app, then choose **上传剪贴板图片** (upload clipboard image), **
 - Uploads go to a unique folder under `%USERPROFILE%\ClaudeUploads`, outside your project repository. SHA-256 hashes are checked before paths are copied. Copies remain there until you remove them; a failed upload can leave partial files in its new batch folder.
 - The app reads the clipboard only when you request it. Successful uploads replace the clipboard with text paths. No GitHub upload, account login, background watcher or additional network service is involved.
 - SSH keys and host verification use your existing OpenSSH configuration. The generated app contains the chosen host alias in `Contents/Resources/config.json`, but no private keys or account tokens. Keep personal app builds out of Git.
-- The UI is currently Chinese. The helper targets a Windows SSH server; it is separate from the browser image-paste behavior, which remains text-only.
+- The UI is currently Chinese. The helper targets a Windows SSH server and shares its upload folder and limits with the browser uplink above, but runs independently of the browser and its backend.
 
 To run the helper's offline validation checks on macOS:
 
@@ -110,6 +119,8 @@ npm run check  # TypeScript/build + offline tests; no remote account required
 | `src/components/SessionSidebar.tsx` | Session selection |
 | `src/components/FilePanel.tsx` | Read-only file and Git views |
 | `src/useWorkbench.ts` | Metadata and last-session selection |
+| `src/useUplink.ts`, `src/uplink.ts` | Image paste/drop/pick, upload stream and transmission log |
+| `src/components/Uplink.tsx` | Uplink console, transmission card and drop target |
 | `src/components/Starfield.tsx` | Background starfield, blaster fire and hyperspace jumps |
 | `src/components/Holo.tsx` | Decrypting text and the connection opening crawl |
 | `src/motion.ts` | Motion preference and decorative cross-component signals |
@@ -118,8 +129,9 @@ npm run check  # TypeScript/build + offline tests; no remote account required
 | `server/ssh.ts` | Encoded PowerShell commands and bypass-by-default CLI launch |
 | `server/remote.ps1` | Remote read-only file/history/Git queries |
 | `server/index.ts` | Local HTTP/WebSocket server and access checks |
+| `server/uploads.ts` | Image batch validation, SFTP upload and SHA-256 verification |
 
-Offline tests cover bypass defaults, literal path quoting, terminal screen restoration, initial session selection, and IME cleanup timing. Live integration requires your own authorized remote machine and is not run in CI.
+Offline tests cover bypass defaults, literal path quoting, terminal screen restoration, initial session selection, IME cleanup timing, and image batch validation, SFTP quoting and path insertion. Live integration requires your own authorized remote machine and is not run in CI.
 
 For browser input regression checks, run `npx vite --host 127.0.0.1` and open `/tests/terminal-input.html` on the displayed development URL. Click **Run input regressions** to compare stock xterm against the fix for repeated Chinese text, then type with your actual OS input method in the fixed terminal. This page only displays received input locally; it makes no SSH connection. Synthetic composition events cover the stale-caret failure but do not replace testing with an OS IME. The fixture is excluded from the production build.
 

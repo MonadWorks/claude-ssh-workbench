@@ -6,6 +6,7 @@ import { DEFAULT_CWD, HOST, PORT, ROOT } from "./config.ts";
 import { remote } from "./ssh.ts";
 import { changes, createSession, getSession, sessions, syncHistory } from "./sessions.ts";
 import { attachTerminal, dimensions, shutdown } from "./terminal.ts";
+import { MAX_BATCH_BYTES, splitBatch, uploadImages } from "./uploads.ts";
 import type { HistoryItem } from "../shared/types.ts";
 
 const app = express(),
@@ -60,6 +61,19 @@ app.get("/api/changes", async (req, res) =>
   res.json(await remote({ op: "changes", path: req.query.path })),
 );
 app.post("/api/sessions", (req, res) => res.json(createSession(req.body)));
+// Streams NDJSON: {stage} lines while the batch crosses SSH, then {paths} or {error}.
+app.post("/api/images", express.raw({ type: "application/octet-stream", limit: MAX_BATCH_BYTES }), async (req, res) => {
+  const sizes = String(req.query.sizes || "").split(",").map(Number);
+  const images = splitBatch(Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0), sizes);
+  res.type("application/x-ndjson");
+  const send = (message: object) => res.write(JSON.stringify(message) + "\n");
+  try {
+    send({ paths: await uploadImages(images, (stage) => send({ stage })) });
+  } catch (error) {
+    send({ error: (error as Error).message });
+  }
+  res.end();
+});
 app.get("/api/sessions/:id", (req, res) => res.json(getSession(req.params.id)));
 app.use("/api", (_req, res) => res.status(404).json({ error: "Unknown endpoint" }));
 app.use(express.static(path.join(ROOT, "dist")));

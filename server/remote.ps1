@@ -72,6 +72,15 @@ switch ($request.op) {
     if ($cut) {$diff=$diff.Substring(0,200000)}
     $result = @{available=$true; status=$status; diff=$diff; truncated=$cut}
   }
+  'upload-dir' {
+    if ($request.batch -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') { throw 'Invalid upload batch' }
+    $d = Join-Path $env:USERPROFILE ('ClaudeUploads\' + $request.batch)
+    New-Item -ItemType Directory -Path $d -Force | Out-Null
+    $result = $d
+  }
+  'hashes' {
+    $result = @(@($request.paths) | ForEach-Object { (Get-FileHash -LiteralPath (FullPath $_) -Algorithm SHA256).Hash.ToLowerInvariant() })
+  }
   default { throw 'Unsupported operation' }
 }
 ConvertTo-Json -InputObject $result -Depth 30 -Compress

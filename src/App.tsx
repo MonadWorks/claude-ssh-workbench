@@ -5,7 +5,9 @@ import { TerminalPanel, type TerminalHandle } from "./components/TerminalPanel";
 import { FilePanel } from "./components/FilePanel";
 import { Starfield } from "./components/Starfield";
 import { Crawl, Decode } from "./components/Holo";
+import { DropZone, UplinkDock, UplinkIcon } from "./components/Uplink";
 import { cssVars, emit, listen, useMotion } from "./motion";
+import { useUplink } from "./useUplink";
 
 const TITLE = "CLAUDE SSH WORKBENCH";
 const MAX_TERMINALS = 8; // Mirrors the backend's concurrent terminal cap.
@@ -33,6 +35,10 @@ export default function App() {
   const live = w.sessions.filter((x) => x.status === "idle" || x.status === "connecting").length;
   const workspace = useRef<HTMLElement>(null);
   const energy = useRef<HTMLElement>(null);
+  const picker = useRef<HTMLInputElement>(null);
+  const uplink = useUplink((text) => terminal.current?.paste(text) ?? false);
+  const [dock, setDock] = useState(false);
+  const host = w.config?.host || "remote host";
   // Every session switch (or reconnect of the same one) is a jump to lightspeed.
   useEffect(() => { if (w.selected) emit("hyperspace"); }, [w.selected, w.revision]);
   // Keystrokes surge through the viewport's energy border.
@@ -55,7 +61,7 @@ export default function App() {
     el.addEventListener("pointermove", move, { passive: true });
     return () => { cancelAnimationFrame(frame); el.removeEventListener("pointermove", move); };
   }, []);
-  return <div className="app-shell" data-link={w.connected ? "up" : "down"}>
+  return <div className="app-shell" data-link={w.connected ? "up" : "down"} data-dragging={uplink.dragging || undefined}>
     <Starfield motion={motion} />
     <div className="cosmos" aria-hidden="true">
       <span className="cosmos-word">REMOTE · HYPERSPACE · TERMINAL · REMOTE · HYPERSPACE · TERMINAL ·</span>
@@ -118,6 +124,13 @@ export default function App() {
             <span className="vb-title">{s ? <Decode text={s.title} /> : "NO SIGNAL"}</span>
             {s ? <span className="vb-status">{STATUS_LABELS[s.status]}</span> : null}
             <span className="vb-path" title={s?.cwd}>{s?.cwd}</span>
+            <button className="uplink-btn" aria-expanded={dock} data-busy={uplink.job?.status === "sending" || undefined}
+              title="Send images to the remote host (or paste / drop them)" onClick={() => setDock((open) => !open)}>
+              <UplinkIcon />Uplink
+              {uplink.log.length ? <span className="badge">{uplink.log.length}</span> : null}
+            </button>
+            <input ref={picker} type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden
+              onChange={(e) => { void uplink.send(Array.from(e.target.files || [])); e.target.value = ""; }} />
             <svg className="reticle" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="9" />
               <path d="M12 1v5M12 18v5M1 12h5M18 12h5" />
@@ -132,6 +145,11 @@ export default function App() {
                 </Crawl>
               </div>}
           </div>
+          <UplinkDock host={host} open={dock} job={uplink.job} log={uplink.log}
+            onClose={() => { setDock(false); uplink.dismiss(); }} onChoose={() => picker.current?.click()}
+            onRetry={uplink.retry} onDismiss={uplink.dismiss} onClear={uplink.clear}
+            onInsert={uplink.insertPaths} onCopy={uplink.copyPaths} />
+          {uplink.dragging ? <DropZone host={host} /> : null}
         </div>
       </div>
       {project ? <FilePanel key={s?.id || project} cwd={s?.cwd || project} onAttach={(path) => {
