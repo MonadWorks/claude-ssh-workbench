@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.state/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+.ssh/
+.claude/
+.DS_Store

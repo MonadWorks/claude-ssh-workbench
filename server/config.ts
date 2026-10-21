@@ -1,0 +1,11 @@
+import path from "node:path";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const envFile = path.join(ROOT, ".env");
+if (existsSync(envFile)) process.loadEnvFile(envFile);
+export const HOST = process.env.SSH_HOST || "claude-host";
+export const DEFAULT_CWD = process.env.REMOTE_WORKSPACE || "C:\\Projects";
+export const PORT = Number(process.env.PORT || 4188);
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) throw new Error("Invalid PORT");
+export const STATE_DIR = process.env.WORKBENCH_STATE_DIR || path.join(ROOT, ".state");
