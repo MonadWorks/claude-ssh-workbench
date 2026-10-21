@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import { clearCommittedInput } from "../terminalInput";
 
 export interface TerminalHandle { paste: (text: string) => boolean; }
 export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
@@ -25,12 +26,13 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
       setEnded(false);
       const term = new Terminal({
         fontFamily: 'Menlo, Consolas, "Liberation Mono", monospace', fontSize: 13,
-        cursorBlink: true, scrollback: 2000, screenReaderMode: true,
+        cursorBlink: true, scrollback: 2000,
         theme: { background: "#171717", foreground: "#eeeeee", cursor: "#eeeeee" },
       });
       const fit = new FitAddon();
       term.loadAddon(fit);
       term.open(host.current!);
+      const ime = clearCommittedInput(term);
       terminal.current = term;
       fit.fit();
       const send = (value: unknown) => {
@@ -109,6 +111,7 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
         cancelAnimationFrame(frame);
         observer.disconnect();
         input.dispose();
+        ime.dispose();
         socket?.close();
         terminal.current = null;
         term.dispose();

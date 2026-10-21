@@ -81,6 +81,7 @@ npm run check  # TypeScript/build + offline tests; no remote account required
 | Module | Responsibility |
 | --- | --- |
 | `src/components/TerminalPanel.tsx` | xterm view, input, resize and reconnect |
+| `src/terminalInput.ts` | Clears committed IME residue after xterm consumes it |
 | `src/components/SessionSidebar.tsx` | Session selection |
 | `src/components/FilePanel.tsx` | Read-only file and Git views |
 | `src/useWorkbench.ts` | Metadata and last-session selection |
@@ -90,7 +91,9 @@ npm run check  # TypeScript/build + offline tests; no remote account required
 | `server/remote.ps1` | Remote read-only file/history/Git queries |
 | `server/index.ts` | Local HTTP/WebSocket server and access checks |
 
-Offline tests cover bypass defaults, literal path quoting, terminal screen restoration, and initial session selection. Live integration requires your own authorized remote machine and is not run in CI.
+Offline tests cover bypass defaults, literal path quoting, terminal screen restoration, initial session selection, and IME cleanup timing. Live integration requires your own authorized remote machine and is not run in CI.
+
+For browser input regression checks, run `npx vite --host 127.0.0.1` and open `/tests/terminal-input.html` on the displayed development URL. Click **Run input regressions** to compare stock xterm against the fix for repeated Chinese text, then type with your actual OS input method in the fixed terminal. This page only displays received input locally; it makes no SSH connection. Synthetic composition events cover the stale-caret failure but do not replace testing with an OS IME. The fixture is excluded from the production build.
 
 Built with [xterm.js](https://xtermjs.org/), [node-pty](https://github.com/microsoft/node-pty) and the official [Claude Code CLI](https://code.claude.com/docs/en/cli-reference). This is an independent project, not an official Anthropic product.
 
