@@ -61,7 +61,7 @@ The first connection can take several seconds. First-use login, trust and bypass
 - Status in the sidebar describes the terminal connection, not whether Claude is currently thinking. Read the native terminal for task status and prompts.
 - File and Git panels show the entire remote workspace. They do not provide per-session rollback.
 - Terminal scrollback is limited to 2,000 lines. Claude's complete transcripts remain remote. The history list includes the 100 most recently modified transcript files.
-- This is an early functional framework, with basic layout and no custom visual design.
+- The interface is a space-opera "bridge": a starfield that jumps to lightspeed when you switch sessions, an opening crawl while a terminal connects, and status shown as glowing blades. The **曲速动效** button in the header turns ambient motion off; that choice is remembered per browser, and the default follows the system's reduced-motion setting.
 
 ## Privacy and access
 
@@ -85,6 +85,9 @@ npm run check  # TypeScript/build + offline tests; no remote account required
 | `src/components/SessionSidebar.tsx` | Session selection |
 | `src/components/FilePanel.tsx` | Read-only file and Git views |
 | `src/useWorkbench.ts` | Metadata and last-session selection |
+| `src/components/Starfield.tsx` | Background starfield, blaster fire and hyperspace jumps |
+| `src/components/Holo.tsx` | Decrypting text and the connection opening crawl |
+| `src/motion.ts` | Motion preference and decorative cross-component signals |
 | `server/terminal.ts` | SSH PTY lifecycle, bounded VT buffer and WebSocket stream |
 | `server/sessions.ts` | Local session metadata |
 | `server/ssh.ts` | Encoded PowerShell commands and bypass-by-default CLI launch |
