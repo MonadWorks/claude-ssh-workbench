@@ -11,6 +11,9 @@ export const STATUS_LABELS: Record<Session["status"], string> = {
 interface Props {
   sessions: Session[];
   history: HistoryItem[];
+  historyError: string;
+  refreshing: boolean;
+  onRefresh: () => void;
   selected: string;
   cwd: string;
   onCwd: (cwd: string) => void;
@@ -88,6 +91,16 @@ export function SessionSidebar(p: Props) {
           <span className="kicker" aria-hidden="true">ARCHIVES</span>
           Remote history<span className="count">{archive.length}</span>
         </h2>
+        {p.historyError ? <div className="history-notice" role="status">
+          <p>Couldn’t refresh remote history. This list may be out of date. You can keep using a connected terminal.</p>
+          <button onClick={p.onRefresh} disabled={p.refreshing}>
+            {p.refreshing ? "Refreshing…" : "Retry history"}
+          </button>
+          <details>
+            <summary>Error details</summary>
+            <p>{p.historyError}</p>
+          </details>
+        </div> : null}
         {archive.map((s, i) => (
           <button
             className="session-row archive"
@@ -101,7 +114,7 @@ export function SessionSidebar(p: Props) {
             <small>{new Date(s.updatedAt).toLocaleString("en-GB")}</small>
           </button>
         ))}
-        {!p.history.some(matches) && !p.sessions.some(matches) ? (
+        {!p.historyError && !p.refreshing && !p.history.some(matches) && !p.sessions.some(matches) ? (
           <p className="muted void-note">
             No sessions in this directory yet. Start one, or choose another project directory.
           </p>

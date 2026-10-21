@@ -96,7 +96,7 @@ export default function App() {
           <dd><Stardate /></dd>
         </div>
       </dl>
-      <span className="beacon" role="status">{w.connected ? "Link online" : "Connecting to local service…"}</span>
+      <span className="beacon" role="status">{w.connected ? "Local service online" : "Connecting to local service…"}</span>
       <div className="header-actions">
         <button className="warp-toggle" aria-pressed={motion} onClick={() => setMotion((m) => !m)}
           title="Starfield, hyperspace jumps and ambient animation">
@@ -113,6 +113,7 @@ export default function App() {
     </div> : null}
     <main className="workspace" ref={workspace}>
       <SessionSidebar sessions={w.sessions} history={w.history} selected={w.selected} cwd={project}
+        historyError={w.historyError} refreshing={w.refreshing} onRefresh={() => void w.refresh()}
         onCwd={setCwd} onCreate={() => void w.create(project)}
         onOpen={(id) => { setCwd(null); w.open(id); }}
         onResume={(item) => { setCwd(null); void w.resume(item); }} />

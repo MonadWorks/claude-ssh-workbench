@@ -542,6 +542,13 @@ pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.history-notice {
+  margin-bottom: 14px;
+  overflow-wrap: anywhere;
+}
+.history-notice p { margin: 8px 0; }
+.history-notice details { margin-top: 8px; font-size: 0.85em; }
+.history-notice summary { cursor: pointer; }
 
 /* ---------- Workspace ---------- */
 .workspace {

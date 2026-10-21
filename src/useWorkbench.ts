@@ -10,6 +10,7 @@ export function useWorkbench() {
   const [config, setConfig] = useState<Bootstrap>();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [historyError, setHistoryError] = useState("");
   const [selected, setSelected] = useState("");
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState("");
@@ -18,6 +19,7 @@ export function useWorkbench() {
   const [loading, setLoading] = useState(true);
   const selectedRef = useRef("");
   const restoring = useRef<Promise<void> | null>(null);
+  const refreshingHistory = useRef<Promise<void> | null>(null);
   const run = useCallback(async <T>(fn: () => Promise<T>) => {
     try { setError(""); return await fn(); } catch (e) { setError((e as Error).message); }
   }, []);
@@ -41,14 +43,24 @@ export function useWorkbench() {
     restoring.current = task;
     return task;
   }, [run, select]);
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(() => {
+    if (refreshingHistory.current) return refreshingHistory.current;
     setRefreshing(true);
-    await run(async () => {
-      const data = await api<{ sessions: HistoryItem[] }>("/history");
-      setHistory(data.sessions);
-    });
-    setRefreshing(false);
-  }, [run]);
+    const task = (async () => {
+      try {
+        const data = await api<{ sessions: HistoryItem[] }>("/history");
+        setHistory(data.sessions);
+        setHistoryError("");
+      } catch (e) {
+        setHistoryError((e as Error).message);
+      } finally {
+        setRefreshing(false);
+        refreshingHistory.current = null;
+      }
+    })();
+    refreshingHistory.current = task;
+    return task;
+  }, []);
   useEffect(() => {
     let disposed = false, timer: ReturnType<typeof setTimeout>, socket: WebSocket;
     void restore();
@@ -80,6 +92,6 @@ export function useWorkbench() {
   const resume = (item: HistoryItem) => run(async () => select(await post<Session>("/sessions", {
     cwd: item.cwd, resumeId: item.id, title: item.title,
   })));
-  return { config, sessions, history, selected, revision, session: sessions.find((s) => s.id === selected),
+  return { config, sessions, history, historyError, selected, revision, session: sessions.find((s) => s.id === selected),
     error, setError, connected, loading, restore, refreshing, refresh, open, create, resume };
 }
