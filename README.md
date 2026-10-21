@@ -52,6 +52,31 @@ Open **http://127.0.0.1:4188**. Keep the backend running while using the workben
 
 The first connection can take several seconds. First-use login, trust and bypass notices are Claude's native terminal screens. Use the terminal to complete any notices. No subscription or API credentials are bundled with this repository.
 
+## Images from a Mac terminal
+
+SSH does not forward the Mac's image clipboard to the remote Windows clipboard. The optional native helper uploads images through the existing SSH connection configuration and copies their **remote file paths**. Paste those paths into Claude Code and add your request. It works with an ordinary terminal and does not need the browser or its backend running.
+
+On macOS with Xcode Command Line Tools and Python 3 installed, build a desktop shortcut using your existing SSH alias:
+
+```sh
+python3 scripts/build-image-uploader.py --host claude-host --output "$HOME/Desktop/Claude Image Uploader.app"
+```
+
+Open the app, then choose **上传剪贴板图片** (upload clipboard image), **选择图片…** (choose images), or drag image files into its window. To capture directly to the clipboard on a Mac, press **Control + Shift + Command + 4**, then press **Command + V** in the uploader. After success, switch back to the Claude terminal and press **Command + V** again to paste the remote paths. The helper never submits your Claude prompt. **再次复制路径** copies the last successful result again.
+
+- PNG, JPEG, GIF and WebP files; up to 20 images, 20 MB each and 100 MB per batch. Clipboard bitmap images are converted to PNG.
+- Uploads go to a unique folder under `%USERPROFILE%\ClaudeUploads`, outside your project repository. SHA-256 hashes are checked before paths are copied. Copies remain there until you remove them; a failed upload can leave partial files in its new batch folder.
+- The app reads the clipboard only when you request it. Successful uploads replace the clipboard with text paths. No GitHub upload, account login, background watcher or additional network service is involved.
+- SSH keys and host verification use your existing OpenSSH configuration. The generated app contains the chosen host alias in `Contents/Resources/config.json`, but no private keys or account tokens. Keep personal app builds out of Git.
+- The UI is currently Chinese. The helper targets a Windows SSH server; it is separate from the browser image-paste behavior, which remains text-only.
+
+To run the helper's offline validation checks on macOS:
+
+```sh
+swiftc scripts/macos-image-uploader/Transfer.swift tests/image-uploader.swift -o /tmp/image-uploader-tests
+/tmp/image-uploader-tests
+```
+
 ## Session behavior and limits
 
 - Up to 8 simultaneous terminal processes and 200 local session entries. Use `/exit` in an unused terminal to free a process slot.

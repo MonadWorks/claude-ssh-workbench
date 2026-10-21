@@ -18,3 +18,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - name: Check macOS image uploader
+        if: runner.os == 'macOS'
+        run: |
+          swiftc scripts/macos-image-uploader/Transfer.swift tests/image-uploader.swift -o "$RUNNER_TEMP/image-uploader-tests"
+          "$RUNNER_TEMP/image-uploader-tests"
+          python3 scripts/build-image-uploader.py --output "$RUNNER_TEMP/Claude Image Uploader.app"
