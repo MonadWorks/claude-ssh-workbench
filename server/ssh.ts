@@ -1,6 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { gzipSync } from "node:zlib";
 import { HOST, ROOT } from "./config.ts";
 import type { Session } from "../shared/types.ts";
 
@@ -80,12 +81,12 @@ export async function remote<T>(
 export function cliArgs(s: Pick<Session, "id" | "persisted">): string[] {
   return ["--dangerously-skip-permissions", s.persisted ? `--resume=${s.id}` : `--session-id=${s.id}`];
 }
-export function terminalScript(s: Pick<Session, "id" | "cwd" | "persisted">): string {
+export function workerScript(s: Pick<Session, "id" | "cwd" | "persisted">): string {
   return `$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue';
   try {
     [Console]::InputEncoding=New-Object Text.UTF8Encoding; [Console]::OutputEncoding=New-Object Text.UTF8Encoding;
     $OutputEncoding=[Console]::OutputEncoding;
-    $env:Path="$env:USERPROFILE\\.local\\bin;"+$env:Path;
+    $env:Path="$env:USERPROFILE\\.local\\bin;"+[Environment]::GetEnvironmentVariable('Path','Machine')+';'+[Environment]::GetEnvironmentVariable('Path','User');
     $env:TERM='xterm-256color'; $env:COLORTERM='truecolor';
     Set-Location -LiteralPath ${psQuote(s.cwd)};
     $id=${psQuote(s.id)};
@@ -103,8 +104,22 @@ export function terminalScript(s: Pick<Session, "id" | "cwd" | "persisted">): st
     exit $LASTEXITCODE;
   } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`;
 }
+const persistentTerminal = readFileSync(path.join(ROOT, "server/persistent-terminal.ps1"), "utf8")
+  .split("\n").filter((line) => !line.trimStart().startsWith("#")).join("\n");
+export function terminalScript(s: Pick<Session, "id" | "cwd" | "persisted">): string {
+  return `$sessionId=${psQuote(s.id)}; $workspace=${psQuote(s.cwd)};\n` +
+    `$workerScript=${psQuote(workerScript(s))};\n` + persistentTerminal;
+}
 export function terminalSshArgs(s: Pick<Session, "id" | "cwd" | "persisted">): string[] {
-  const encoded = Buffer.from(terminalScript(s), "utf16le").toString("base64");
+  // Windows' SSH shell has a small command-line limit. Compress the bootstrap
+  // rather than truncating paths or transferring a mutable shared script.
+  const packed = gzipSync(Buffer.from(terminalScript(s), "utf8"), { level: 9 }).toString("base64");
+  const bootstrap = `$b=[Convert]::FromBase64String('${packed}');` +
+    `$m=New-Object IO.MemoryStream(,$b);` +
+    `$g=New-Object IO.Compression.GzipStream($m,[IO.Compression.CompressionMode]::Decompress);` +
+    `$r=New-Object IO.StreamReader($g,[Text.Encoding]::UTF8);Invoke-Expression $r.ReadToEnd()`;
+  const encoded = Buffer.from(bootstrap, "utf16le").toString("base64");
+  if (encoded.length > 7900) throw new Error("The remote launch command exceeds Windows' command-line limit. Use a shorter workspace path.");
   return ["-tt", "-C", "-e", "none", "-o", "BatchMode=yes", "-o", "ConnectTimeout=20",
     "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=2", HOST,
     "powershell.exe -NoLogo -NoProfile -EncodedCommand " + encoded];

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cliArgs, psQuote, terminalScript, terminalSshArgs } from "../server/ssh.ts";
+import { gunzipSync } from "node:zlib";
+import { cliArgs, psQuote, terminalScript, terminalSshArgs, workerScript } from "../server/ssh.ts";
 import xterm from "@xterm/headless";
 import serialize from "@xterm/addon-serialize";
 const { Terminal } = xterm;
@@ -13,10 +14,16 @@ test("every new and resumed terminal starts interactive Claude with bypass enabl
     const options = { id, persisted, cwd: "C:\\Projects\\demo" };
     const ssh = terminalSshArgs(options);
     assert.equal(ssh[0], "-tt");
-    const script = Buffer.from(ssh.at(-1)!.split("-EncodedCommand ")[1], "base64").toString("utf16le");
+    const bootstrap = Buffer.from(ssh.at(-1)!.split("-EncodedCommand ")[1], "base64").toString("utf16le");
+    const packed = bootstrap.match(/FromBase64String\('([A-Za-z0-9+/=]+)'\)/)![1];
+    const script = gunzipSync(Buffer.from(packed, "base64")).toString("utf8");
+    assert.ok(ssh.at(-1)!.length < 8000, "fits the Windows SSH command limit");
     assert.equal(script, terminalScript(options));
-    assert.ok(script.includes("$cliArgs=@('--dangerously-skip-permissions')"));
-    assert.ok(script.includes("Test-Path -LiteralPath (Join-Path $_.FullName ($id+'.jsonl'))"));
+    const worker = workerScript(options);
+    assert.ok(worker.includes("$cliArgs=@('--dangerously-skip-permissions')"));
+    assert.ok(worker.includes("Test-Path -LiteralPath (Join-Path $_.FullName ($id+'.jsonl'))"));
+    assert.ok(script.includes("& $claude attach $jobId"));
+    assert.ok(script.includes("--exec"));
     assert.ok(!script.includes('stream-json'));
     assert.ok(!script.includes('set_permission_mode'));
   }

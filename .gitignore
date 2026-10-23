@@ -16,3 +16,5 @@ id_ed25519*
 .claude/
 .DS_Store
 *.app/
+__pycache__/
+*.py[cod]

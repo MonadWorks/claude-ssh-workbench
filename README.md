@@ -9,7 +9,7 @@ A minimal browser workbench for **the real Claude Code terminal on a remote Wind
 - Opens interactive Claude Code over SSH using the remote machine's existing login.
 - **Starts every new or resumed process with `--dangerously-skip-permissions`.** This intentionally allows Claude to run tools without approval. Use only with a remote account and workspace you are authorized to control. Claude may ask you to accept its native first-use bypass dialog once.
 - Restores the last selected session when the page opens. New sessions and imported history connect automatically.
-- Keeps terminals alive while switching sessions or closing/reloading the browser, as long as this local backend and its SSH connections remain running.
+- Hosts each terminal under Claude Code's **remote background supervisor**. Closing the browser, stopping the local backend, or losing SSH leaves the remote worker running. Reconnecting attaches to the same terminal.
 - Restores terminal colors, cursor, alternate screen, scrollback and unsent input when reattaching to a live process.
 - Checks for the actual remote transcript before deciding between `--session-id` and `--resume`. Saved sessions remain on the remote computer.
 - Supports terminal keyboard input, Chinese IME, paste and viewport resize. Use Claude's `/model`, `/effort`, `/add-dir`, `/exit`, Escape and other native controls directly.
@@ -18,7 +18,7 @@ A minimal browser workbench for **the real Claude Code terminal on a remote Wind
 ## Requirements
 
 - Local machine: macOS or Linux, Node.js **22.15+**, npm, and OpenSSH client. The current integration was verified from macOS to Windows.
-- Remote machine: Windows with OpenSSH Server and native Claude Code installed at `%USERPROFILE%\.local\bin\claude.exe`, already signed in.
+- Remote machine: Windows with OpenSSH Server and native Claude Code **2.1.308+** installed at `%USERPROFILE%\.local\bin\claude.exe`, already signed in. The workspace must already be trusted in Claude Code.
 - A working SSH alias with noninteractive authentication. Verify `ssh claude-host` first, including the host fingerprint. Credentials and host-key verification stay with your existing OpenSSH configuration.
 - Network access between the two machines. Tailscale is optional; any network that permits your SSH connection works.
 
@@ -48,7 +48,7 @@ npm run build
 npm start
 ```
 
-Open **http://127.0.0.1:4188**. Keep the backend running while using the workbench. For development, `npm run dev` serves Vite on port 5173 and proxies to the backend on port 4188. The development proxy uses these default ports.
+Open **http://127.0.0.1:4188**. The backend is needed to view or control terminals, but remote tasks continue when it stops. For development, `npm run dev` serves Vite on port 5173 and proxies to the backend on port 4188. The development proxy uses these default ports.
 
 The first connection can take several seconds. First-use login, trust and bypass notices are Claude's native terminal screens. Use the terminal to complete any notices. No subscription or API credentials are bundled with this repository.
 
@@ -88,9 +88,11 @@ swiftc scripts/macos-image-uploader/Transfer.swift tests/image-uploader.swift -o
 
 ## Session behavior and limits
 
-- Up to 8 simultaneous terminal processes and 200 local session entries. Use `/exit` in an unused terminal to free a process slot.
+- Up to 8 simultaneous local terminal connections and 200 local session entries. Remote background workers continue after detaching; use `/exit` inside a worker or `claude stop <job-id>` on the remote host to stop one explicitly.
 - Refresh and tab switches reattach to the existing terminal; they do not resend prompts or start a second process for the same session.
-- Backend shutdown or SSH loss can terminate an active remote CLI. Reopening restores saved conversation history, **not a running shell command or unsaved terminal input**. Verify unfinished operations before repeating them.
+- New terminals are started using `claude --bg --exec` and viewed using `claude attach`. The remote supervisor owns the PTY and Claude process; SSH owns only the viewer. Live reconnects preserve running work and unsent terminal input. This does not survive a remote reboot or shutdown, remote network loss, an explicit stop, a process crash, or exhausted usage limits. A task can still pause for input.
+- A per-session remote file lock and a stable background-job name prevent duplicate workers when two tabs connect or a connection fails during startup. Completed workers resume from their saved Claude transcript on the next connection.
+- **Existing foreground sessions are not moved automatically.** Run `/bg` in the original live Claude session before leaving it. The workbench refuses to duplicate a known foreground conversation; after backgrounding, reopening that conversation attaches to its native background session. Already-disconnected foreground processes cannot safely be adopted by changing this launcher.
 - Native commands such as `/clear`, `/fork` or `/resume` can change Claude's session identity inside a terminal. The sidebar tracks the ID used to launch it; refresh the history list to open another native session as its own entry.
 - Status in the sidebar describes the terminal connection, not whether Claude is currently thinking. Read the native terminal for task status and prompts.
 - File and Git panels show the entire remote workspace. They do not provide per-session rollback.
@@ -102,6 +104,19 @@ swiftc scripts/macos-image-uploader/Transfer.swift tests/image-uploader.swift -o
 The server binds **only to 127.0.0.1**, validates Host and Origin for HTTP/WebSocket requests, and requires a request marker for HTTP mutations. Keep it local; this is not an authenticated multi-user service and should not be exposed through a public reverse proxy.
 
 The application uses your SSH client directly. It does not copy private keys, read Claude tokens, or supply a shared Claude account. `.env`, `.state/`, logs, generated builds and credential file patterns are ignored by Git. `.state/` contains private local session metadata and is never meant for publication. Terminal screens are held in backend memory for reattachment.
+
+The remote supervisor is Claude Code's built-in service, authenticated with the existing remote login. It uses local Windows named pipes; this integration opens no additional network port. Per-session lock files live in `%LOCALAPPDATA%\ClaudeSSHWorkbench\locks`. Background job metadata stays in Claude's own config directory.
+
+## Persistent sessions from a desktop terminal
+
+The optional launcher opens Claude's native agent view. Every task dispatched there is hosted remotely and defaults to bypass permissions:
+
+```sh
+python3 scripts/remote-claude.py --host claude-host --dir 'C:\Projects'
+python3 scripts/remote-claude.py --host claude-host --dir 'C:\Projects' --attach <job-id>
+```
+
+Enter a task to dispatch it, select a row and press Enter to enter its terminal, and press Left on an empty prompt to return to the list. Reopening the launcher lists the existing background jobs. Closing the SSH window detaches; `Ctrl+C` inside an attached task can still interrupt it. Native model, effort and permission settings remain available within Claude.
 
 ## Development
 
@@ -127,6 +142,8 @@ npm run check  # TypeScript/build + offline tests; no remote account required
 | `server/terminal.ts` | SSH PTY lifecycle, bounded VT buffer and WebSocket stream |
 | `server/sessions.ts` | Local session metadata |
 | `server/ssh.ts` | Encoded PowerShell commands and bypass-by-default CLI launch |
+| `server/persistent-terminal.ps1` | Remote background-worker discovery, launch locking and attachment |
+| `scripts/remote-claude.py` | Desktop-terminal entry into the remote persistent agent view |
 | `server/remote.ps1` | Remote read-only file/history/Git queries |
 | `server/index.ts` | Local HTTP/WebSocket server and access checks |
 | `server/uploads.ts` | File batch validation, SFTP upload and SHA-256 verification |
