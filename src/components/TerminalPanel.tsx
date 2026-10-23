@@ -5,6 +5,7 @@ import "@xterm/xterm/css/xterm.css";
 import { clearCommittedInput } from "../terminalInput";
 import { Crawl } from "./Holo";
 import { emit } from "../motion";
+import { TerminalOutput } from "../../shared/terminalOutput";
 
 const THEME = {
   background: "#04060d", foreground: "#dfe6f3", cursor: "#ffe81f", cursorAccent: "#04060d",
@@ -15,12 +16,13 @@ const THEME = {
   brightBlue: "#7fc1ff", brightMagenta: "#dcaaff", brightCyan: "#8be6ff", brightWhite: "#ffffff",
 };
 
-export interface TerminalHandle { paste: (text: string) => boolean; }
+export interface TerminalHandle { paste: (text: string) => boolean; redraw: () => void; }
 export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
   function TerminalPanel({ sessionId }, ref) {
     const host = useRef<HTMLDivElement>(null);
     const terminal = useRef<Terminal | null>(null);
     const writable = useRef(false);
+    const redraw = useRef<() => void>(() => {});
     const [attempt, setAttempt] = useState(0);
     const [notice, setNotice] = useState("Connecting to the remote terminal…");
     const [ended, setEnded] = useState(false);
@@ -36,10 +38,11 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
       terminal.current.paste(text);
       terminal.current.focus();
       return true;
-    } }), []);
+    }, redraw: () => redraw.current() }), []);
     useEffect(() => {
       let disposed = false, exited = false, socket: WebSocket;
-      let retry: ReturnType<typeof setTimeout>, frame = 0;
+      let retry: ReturnType<typeof setTimeout>, resizeTimer: ReturnType<typeof setTimeout>;
+      let requestedSize = "";
       setNotice("Connecting to the remote terminal…");
       setEnded(false);
       setBoot("on");
@@ -54,22 +57,38 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
       const fit = new FitAddon();
       term.loadAddon(fit);
       term.open(host.current!);
+      const output = new TerminalOutput(term);
       const ime = clearCommittedInput(term);
       terminal.current = term;
       fit.fit();
       const send = (value: unknown) => {
         if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value));
       };
-      const size = () => {
-        if (disposed || !host.current?.clientWidth || !host.current?.clientHeight) return;
-        fit.fit();
-        if (writable.current) send({ type: "resize", cols: term.cols, rows: term.rows });
+      const size = (force = false) => {
+        if (disposed || !writable.current || !host.current?.clientWidth || !host.current?.clientHeight) return;
+        const proposed = fit.proposeDimensions();
+        if (!proposed) return;
+        const cols = Math.max(20, Math.min(400, proposed.cols)), rows = Math.max(5, Math.min(200, proposed.rows));
+        const key = `${cols}:${rows}`;
+        if (!force && key === requestedSize) return;
+        requestedSize = key;
+        // Do not resize optimistically: buffered output still uses the old grid.
+        send({ type: "resize", cols, rows });
       };
       const observer = new ResizeObserver(() => {
-        cancelAnimationFrame(frame);
-        frame = requestAnimationFrame(size);
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(size, 120);
       });
       observer.observe(host.current!);
+      const focus = () => size(true);
+      term.textarea?.addEventListener("focus", focus);
+      redraw.current = () => {
+        if (!writable.current) return;
+        size(true);
+        // Claude's native redraw preserves the task and prompt; no restart/resume.
+        send({ type: "input", data: "\x0c" });
+        term.focus();
+      };
       const input = term.onData((data) => {
         if (!writable.current) return;
         // The server's VT emulator answers these device/cursor queries once.
@@ -92,24 +111,25 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
       const connect = () => {
         if (disposed) return;
         writable.current = false;
+        requestedSize = "";
         const query = new URLSearchParams({ id: sessionId, cols: String(Math.max(20, term.cols)), rows: String(Math.max(5, term.rows)) });
         socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/terminal?${query}`);
         socket.onmessage = ({ data }) => {
           if (disposed) return;
           const message = JSON.parse(data);
           if (message.type === "snapshot") {
-            term.reset();
-            term.resize(message.cols, message.rows);
-            term.write(message.data, () => {
+            output.restore(message.cols, message.rows, message.data, () => {
               if (disposed || exited) return;
               writable.current = true;
               if (message.data) live();
-              size();
+              size(true);
               term.focus();
             });
+          } else if (message.type === "resize") {
+            output.resize(message.cols, message.rows);
           } else if (message.type === "data") {
             live();
-            term.write(message.data);
+            output.write(message.data);
           } else if (message.type === "exit") {
             exited = true;
             writable.current = false;
@@ -132,8 +152,11 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
         disposed = true;
         writable.current = false;
         clearTimeout(retry);
-        cancelAnimationFrame(frame);
+        clearTimeout(resizeTimer);
         observer.disconnect();
+        term.textarea?.removeEventListener("focus", focus);
+        redraw.current = () => {};
+        output.dispose();
         input.dispose();
         ime.dispose();
         socket?.close();

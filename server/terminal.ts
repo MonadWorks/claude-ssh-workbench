@@ -8,11 +8,13 @@ import { ROOT } from "./config.ts";
 import { terminalSshArgs } from "./ssh.ts";
 import { changed, getSession } from "./sessions.ts";
 import type { Session } from "../shared/types.ts";
+import { TerminalOutput } from "../shared/terminalOutput.ts";
 
 type Runtime = {
   process: pty.IPty;
   screen: InstanceType<typeof Terminal>;
   serializer: InstanceType<typeof SerializeAddon>;
+  output: TerminalOutput;
   clients: Set<WebSocket>;
   ended: boolean;
 };
@@ -45,7 +47,8 @@ function start(s: Session, cols: number, rows: number): Runtime {
       env: { ...globalThis.process.env, TERM: "xterm-256color", COLORTERM: "truecolor" },
     });
   } catch (e) { screen.dispose(); throw e; }
-  const runtime: Runtime = { process, screen, serializer, clients: new Set(), ended: false };
+  const output = new TerminalOutput(screen);
+  const runtime: Runtime = { process, screen, serializer, output, clients: new Set(), ended: false };
   runtimes.set(s.id, runtime);
   // Answer cursor/device queries even while the browser is closed. Browser-side
   // query replies are filtered so multiple viewers cannot duplicate them.
@@ -55,7 +58,7 @@ function start(s: Session, cols: number, rows: number): Runtime {
     if (s.status === "connecting") { s.status = "idle"; changed(); }
     queued += data.length;
     if (queued > 1024 * 1024) process.pause();
-    screen.write(data, () => {
+    output.write(data, () => {
       for (const ws of runtime.clients) send(ws, { type: "data", data });
       queued -= data.length;
       if (!runtime.ended && queued < 128 * 1024) process.resume();
@@ -67,12 +70,13 @@ function start(s: Session, cols: number, rows: number): Runtime {
     s.status = exitCode === 0 ? "stopped" : "error";
     s.error = exitCode === 0 ? undefined : `The remote terminal exited (${exitCode}). Check the terminal output, then retry.`;
     changed(true);
-    screen.write("", () => {
+    output.after(() => {
       for (const ws of runtime.clients) {
         send(ws, { type: "exit", code: exitCode, error: s.error });
         ws.close(1000);
       }
       runtime.clients.clear();
+      output.dispose();
       screen.dispose();
     });
   });
@@ -100,17 +104,21 @@ export function attachTerminal(ws: WebSocket, id: string, cols: number, rows: nu
         runtime.process.write(message.data);
       } else if (message.type === "resize") {
         const size = dimensions(message.cols, message.rows);
-        runtime.screen.write("", () => {
+        runtime.output.after(() => {
           if (runtime.ended) return;
+          const resized = runtime.screen.cols !== size.cols || runtime.screen.rows !== size.rows;
           runtime.screen.resize(size.cols, size.rows);
-          runtime.process.resize(size.cols, size.rows);
+          // Every viewer consumes the same VT stream at the same grid size.
+          // Announce the change between output chunks, before asking SSH to resize.
+          for (const client of runtime.clients) send(client, { type: "resize", ...size });
+          if (resized) runtime.process.resize(size.cols, size.rows);
         });
       } else throw new Error("Invalid terminal message");
     } catch { ws.close(1008, "Invalid terminal message"); }
   });
   // A serialized VT screen preserves cursor, colors, alternate buffer and input
   // across refresh/switch, without replaying an unbounded log of control bytes.
-  runtime.screen.write("", () => {
+  runtime.output.after(() => {
     if (runtime.ended || ws.readyState !== WebSocket.OPEN) return;
     send(ws, { type: "snapshot", cols: runtime.screen.cols, rows: runtime.screen.rows,
       data: runtime.serializer.serialize() });

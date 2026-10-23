@@ -125,6 +125,8 @@ export default function App() {
             <span className="vb-title">{s ? <Decode text={s.title} /> : "NO SIGNAL"}</span>
             {s ? <span className="vb-status">{STATUS_LABELS[s.status]}</span> : null}
             <span className="vb-path" title={s?.cwd}>{s?.cwd}</span>
+            <button disabled={!s || s.status !== "idle"} onClick={() => terminal.current?.redraw()}
+              title="Redraw the terminal (Ctrl+L). The remote task keeps running.">Redraw</button>
             <button className="uplink-btn" aria-expanded={dock} data-busy={uplink.job?.status === "sending" || undefined}
               title="Send files to the remote host (or paste / drop them)" onClick={() => setDock((open) => !open)}>
               <UplinkIcon />Uplink

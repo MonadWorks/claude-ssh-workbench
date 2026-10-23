@@ -13,6 +13,7 @@ A minimal browser workbench for **the real Claude Code terminal on a remote Wind
 - Restores terminal colors, cursor, alternate screen, scrollback and unsent input when reattaching to a live process.
 - Checks for the actual remote transcript before deciding between `--session-id` and `--resume`. Saved sessions remain on the remote computer.
 - Supports terminal keyboard input, Chinese IME, paste and viewport resize. Use Claude's `/model`, `/effort`, `/add-dir`, `/exit`, Escape and other native controls directly.
+- Keeps terminal output and size changes in order across reconnects and multiple browser viewers. If the remote terminal leaves stale text, **Redraw** (or **Ctrl+L** inside Claude) requests a fresh frame without restarting the task or clearing the prompt.
 - Browses remote files, previews UTF-8 text up to 2 MB, inserts a file path into terminal input without submitting it, and shows Git changes when Git is installed remotely.
 
 ## Requirements
