@@ -6,6 +6,7 @@ import { clearCommittedInput } from "../terminalInput";
 import { Crawl } from "./Holo";
 import { emit } from "../motion";
 import { TerminalOutput } from "../../shared/terminalOutput";
+import { ScrollRepaint } from "../terminalScroll";
 
 const THEME = {
   background: "#04060d", foreground: "#dfe6f3", cursor: "#ffe81f", cursorAccent: "#04060d",
@@ -64,6 +65,9 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
       const send = (value: unknown) => {
         if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(value));
       };
+      const scrollRepaint = new ScrollRepaint(() => {
+        if (!disposed && writable.current) send({ type: "input", data: "\x0c" });
+      });
       const size = (force = false) => {
         if (disposed || !writable.current || !host.current?.clientWidth || !host.current?.clientHeight) return;
         const proposed = fit.proposeDimensions();
@@ -93,6 +97,7 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
         if (!writable.current) return;
         // The server's VT emulator answers these device/cursor queries once.
         if (/^\x1b\[(?:\??\d+;\d+R|[?>]?[\d;]*c)$/.test(data)) return;
+        scrollRepaint.input(data);
         emit("keystroke");
         for (let i = 0; i < data.length;) {
           let end = Math.min(i + 16384, data.length);
@@ -139,6 +144,7 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
           }
         };
         socket.onclose = () => {
+          scrollRepaint.cancel();
           writable.current = false;
           if (!disposed && !exited) {
             setNotice("Connection lost. Reconnecting…");
@@ -156,6 +162,7 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
         observer.disconnect();
         term.textarea?.removeEventListener("focus", focus);
         redraw.current = () => {};
+        scrollRepaint.cancel();
         output.dispose();
         input.dispose();
         ime.dispose();
