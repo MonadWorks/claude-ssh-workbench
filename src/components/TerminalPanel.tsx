@@ -1,6 +1,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebglAddon } from "@xterm/addon-webgl";
+import { copyTerminalText, localTerminalSelection } from "../terminalSelection";
 import "@xterm/xterm/css/xterm.css";
 import { clearCommittedInput } from "../terminalInput";
 import { Crawl } from "./Holo";
@@ -17,7 +19,7 @@ const THEME = {
   brightBlue: "#7fc1ff", brightMagenta: "#dcaaff", brightCyan: "#8be6ff", brightWhite: "#ffffff",
 };
 
-export interface TerminalHandle { paste: (text: string) => boolean; redraw: () => void; }
+export interface TerminalHandle { paste: (text: string) => boolean; redraw: () => void; copy: () => void; }
 export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
   function TerminalPanel({ sessionId }, ref) {
     const host = useRef<HTMLDivElement>(null);
@@ -27,6 +29,21 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
     const [attempt, setAttempt] = useState(0);
     const [notice, setNotice] = useState("Connecting to the remote terminal…");
     const [ended, setEnded] = useState(false);
+    const [copyNotice, setCopyNotice] = useState("");
+    const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const copy = () => {
+      const term = terminal.current;
+      const text = term?.getSelection() || "";
+      const notify = (message: string) => {
+        if (terminal.current !== term) return;
+        clearTimeout(copyTimer.current);
+        setCopyNotice(message);
+        copyTimer.current = setTimeout(() => setCopyNotice(""), 3500);
+      };
+      if (!text) { notify("Drag over terminal text, then press Copy or ⌘C / Ctrl+Shift+C."); return; }
+      void copyTerminalText(text).then(() => notify("Copied to clipboard."),
+        () => notify("Clipboard access failed. Keep this window active and try Copy again."));
+    };
     // The crawl covers the terminal until its first output, then plays a short exit.
     const [boot, setBoot] = useState<"on" | "exit" | "off">("on");
     useEffect(() => {
@@ -39,7 +56,7 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
       terminal.current.paste(text);
       terminal.current.focus();
       return true;
-    }, redraw: () => redraw.current() }), []);
+    }, redraw: () => redraw.current(), copy }), []);
     useEffect(() => {
       let disposed = false, exited = false, socket: WebSocket;
       let retry: ReturnType<typeof setTimeout>, resizeTimer: ReturnType<typeof setTimeout>;
@@ -58,6 +75,12 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
       const fit = new FitAddon();
       term.loadAddon(fit);
       term.open(host.current!);
+      // Fixed-cell rendering avoids DOM font shaping expanding CJK punctuation.
+      try {
+        const renderer = new WebglAddon();
+        renderer.onContextLoss(() => renderer.dispose());
+        term.loadAddon(renderer);
+      } catch { /* xterm keeps its DOM renderer when WebGL is unavailable. */ }
       const output = new TerminalOutput(term);
       const ime = clearCommittedInput(term);
       terminal.current = term;
@@ -68,6 +91,7 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
       const scrollRepaint = new ScrollRepaint(() => {
         if (!disposed && writable.current) send({ type: "input", data: "\x0c" });
       });
+      const selection = localTerminalSelection(term, () => scrollRepaint.cancel());
       const size = (force = false) => {
         if (disposed || !writable.current || !host.current?.clientWidth || !host.current?.clientHeight) return;
         const proposed = fit.proposeDimensions();
@@ -107,8 +131,10 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
         }
       });
       term.attachCustomKeyEventHandler((event) => {
-        if (event.type === "keydown" && event.metaKey && event.key === "c" && term.hasSelection()) {
-          void navigator.clipboard.writeText(term.getSelection());
+        if (event.type === "keydown" && event.key.toLowerCase() === "c" &&
+          (event.metaKey || (event.ctrlKey && event.shiftKey)) && term.hasSelection()) {
+          event.preventDefault();
+          copy();
           return false;
         }
         return true;
@@ -163,6 +189,8 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
         term.textarea?.removeEventListener("focus", focus);
         redraw.current = () => {};
         scrollRepaint.cancel();
+        clearTimeout(copyTimer.current);
+        selection.dispose();
         output.dispose();
         input.dispose();
         ime.dispose();
@@ -173,6 +201,7 @@ export const TerminalPanel = forwardRef<TerminalHandle, { sessionId: string }>(
     }, [sessionId, attempt]);
     return <section className="terminal-panel" aria-label="Claude Code terminal">
       <div className="terminal-host" ref={host} />
+      {copyNotice ? <div className="terminal-copy-notice" role="status">{copyNotice}</div> : null}
       {boot !== "off" ? <Crawl status={notice || "Jump complete"} exiting={boot === "exit"} />
         : notice ? <div className="terminal-notice" role="status">
           <span>{notice}</span>
