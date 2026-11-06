@@ -2,7 +2,7 @@
 
 A minimal browser workbench for **the real Claude Code terminal on a remote Windows machine**. The center is an xterm.js terminal connected through an SSH PTY. The side panels provide a session list and a read-only file browser. There is no custom chat interface, model picker, or permission-mode toolbar.
 
-中文：通过浏览器直接操作远端 Claude Code 原生终端，保留会话列表和文件浏览。打开自动恢复上次会话；模型、思考强度、模式、停止等操作都在 Claude 原生终端内完成。鼠标滚动时会自动请求完整重绘，修复 Windows 后台会话局部更新留下的旧字符；长触控板手势也会持续修复，原任务和未发送输入保留。
+中文：通过浏览器直接操作远端 Claude Code 原生终端，保留会话列表和文件浏览。打开自动恢复上次会话；模型、思考强度、模式、停止等操作都在 Claude 原生终端内完成。鼠标滚动时会自动请求完整重绘，修复 Windows 后台会话局部更新留下的旧字符；长触控板手势也会持续修复，原任务和未发送输入保留。终端使用固定单元格渲染，避免中文标点撑出右边界；直接拖选文字后按 ⌘C（Windows/Linux：Ctrl+Shift+C），或点击 Copy，即可复制到当前电脑的剪贴板。
 
 ## What it does
 
@@ -12,6 +12,7 @@ A minimal browser workbench for **the real Claude Code terminal on a remote Wind
 - Hosts each terminal under Claude Code's **remote background supervisor**. Closing the browser, stopping the local backend, or losing SSH leaves the remote worker running. Reconnecting attaches to the same terminal.
 - Restores terminal colors, cursor, alternate screen, scrollback and unsent input when reattaching to a live process.
 - Checks for the actual remote transcript before deciding between `--session-id` and `--resume`. Saved sessions remain on the remote computer.
+- Renders text in fixed cells to keep CJK punctuation inside the terminal width, with a DOM fallback when WebGL is unavailable. Drag to select locally even when Claude enables mouse tracking; use **⌘C** on macOS, **Ctrl+Shift+C** on Windows/Linux, or **Copy** to copy to this computer’s clipboard. Single clicks and wheel scrolling still reach Claude.
 - Supports terminal keyboard input, Chinese IME, paste and viewport resize. Use Claude's `/model`, `/effort`, `/add-dir`, `/exit`, Escape and other native controls directly.
 - Automatically requests a native full repaint at most once every 120 ms while mouse-wheel input is arriving. This works around stale cells left by incremental scrolling in Windows attached sessions, including long trackpad gestures, while preserving the current task, scroll position and input draft.
 - Keeps terminal output and size changes in order across reconnects and multiple browser viewers. If the remote terminal leaves stale text, **Redraw** (or **Ctrl+L** inside Claude) requests a fresh frame without restarting the task or clearing the prompt.
@@ -152,7 +153,7 @@ npm run check  # TypeScript/build + offline tests; no remote account required
 
 Offline tests cover bypass defaults, literal path quoting, terminal screen restoration, initial session selection, IME cleanup timing, and mixed file batch validation, filename sanitization, SFTP quoting and path insertion. Live integration requires your own authorized remote machine and is not run in CI.
 
-For browser input regression checks, run `npx vite --host 127.0.0.1` and open `/tests/terminal-input.html` on the displayed development URL. Click **Run input regressions** to compare stock xterm against the fix for repeated Chinese text, then type with your actual OS input method in the fixed terminal. This page only displays received input locally; it makes no SSH connection. Synthetic composition events cover the stale-caret failure but do not replace testing with an OS IME. The fixture is excluded from the production build.
+For browser input regression checks, run `npx vite --host 127.0.0.1` and open `/tests/terminal-input.html` on the displayed development URL. Click **Run input regressions** to compare stock xterm against the fix for repeated Chinese text, then type with your actual OS input method in the fixed terminal. This page only displays received input locally; it makes no SSH connection. Synthetic composition events cover the stale-caret failure but do not replace testing with an OS IME. The fixture is excluded from the production build. `/tests/terminal-interaction.html` checks forward, reverse and multiline selection with remote mouse tracking enabled, single-click forwarding and CJK punctuation widths in WebGL/DOM renderers. Its Copy button supports a manual OS clipboard check using synthetic text.
 
 Built with [xterm.js](https://xtermjs.org/), [node-pty](https://github.com/microsoft/node-pty) and the official [Claude Code CLI](https://code.claude.com/docs/en/cli-reference). Interface fonts are Orbitron, Rajdhani, Exo 2, News Cycle and JetBrains Mono (SIL Open Font License), bundled through [Fontsource](https://fontsource.org/) so the page makes no external font requests. This is an independent project, not an official Anthropic product.
 
