@@ -2,7 +2,7 @@
 
 A minimal browser workbench for **the real Claude Code terminal on a remote Windows machine**. The center is an xterm.js terminal connected through an SSH PTY. The side panels provide a session list and a read-only file browser. There is no custom chat interface, model picker, or permission-mode toolbar.
 
-中文：通过浏览器直接操作远端 Claude Code 原生终端，保留会话列表和文件浏览。打开自动恢复上次会话；模型、思考强度、模式、停止等操作都在 Claude 原生终端内完成。
+中文：通过浏览器直接操作远端 Claude Code 原生终端，保留会话列表和文件浏览。打开自动恢复上次会话；模型、思考强度、模式、停止等操作都在 Claude 原生终端内完成。鼠标滚动时会自动请求完整重绘，修复 Windows 后台会话局部更新留下的旧字符；长触控板手势也会持续修复，原任务和未发送输入保留。
 
 ## What it does
 
@@ -13,6 +13,7 @@ A minimal browser workbench for **the real Claude Code terminal on a remote Wind
 - Restores terminal colors, cursor, alternate screen, scrollback and unsent input when reattaching to a live process.
 - Checks for the actual remote transcript before deciding between `--session-id` and `--resume`. Saved sessions remain on the remote computer.
 - Supports terminal keyboard input, Chinese IME, paste and viewport resize. Use Claude's `/model`, `/effort`, `/add-dir`, `/exit`, Escape and other native controls directly.
+- Automatically requests a native full repaint at most once every 120 ms while mouse-wheel input is arriving. This works around stale cells left by incremental scrolling in Windows attached sessions, including long trackpad gestures, while preserving the current task, scroll position and input draft.
 - Keeps terminal output and size changes in order across reconnects and multiple browser viewers. If the remote terminal leaves stale text, **Redraw** (or **Ctrl+L** inside Claude) requests a fresh frame without restarting the task or clearing the prompt.
 - Browses remote files, previews UTF-8 text up to 2 MB, inserts a file path into terminal input without submitting it, and shows Git changes when Git is installed remotely.
 
